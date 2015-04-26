@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.Animations;
 using System;
 using System.Collections.Generic;
 using Object = UnityEngine.Object;
@@ -17,14 +18,16 @@ namespace Spriter2UnityDX.Animations {
 		private IDictionary<string, AnimationClip> OriginalClips = new Dictionary <string, AnimationClip> ();
 		private IDictionary<int, SpatialInfo> DefaultBones;
 		private IDictionary<int, SpriteInfo> DefaultSprites;
+		private AnimatorController Controller;
 
 		public AnimationBuilder (ScmlObject obj, IDictionary<int, IDictionary<int, Sprite>> folders,
 		                         IDictionary<int, Transform> bones, IDictionary<int, Transform> sprites,
 		                         IDictionary<int, SpatialInfo> defaultBones, IDictionary<int, SpriteInfo> defaultSprites,
-		                         string prefabPath, Object prefab) {
+		                         string prefabPath, Object prefab, AnimatorController controller) {
 			Scml = obj; Folders = folders; Bones = bones; 
-			Sprites = sprites; PrefabPath = prefabPath; DefaultBones = defaultBones;
-			DefaultSprites = defaultSprites; Prefab = prefab; Root = Bones [-1];
+			Sprites = sprites; PrefabPath = prefabPath; 
+			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
+			Prefab = prefab; Root = Bones [-1]; Controller = controller;
 
 			foreach (var item in AssetDatabase.LoadAllAssetRepresentationsAtPath(prefabPath)) {
 				var clip = item as AnimationClip;
@@ -36,7 +39,8 @@ namespace Spriter2UnityDX.Animations {
 			var clip = new AnimationClip ();
 			clip.name = animation.name;
 			var unused = new List<Transform> ();
-			foreach (var kvPair in Sprites) unused.Add (kvPair.Value);
+			foreach (var kvPair in Sprites)
+				unused.Add (kvPair.Value);
 			var activeBones = new Dictionary<int, Transform> (Bones);
 			var activeSprites = new Dictionary<int, Transform> (Sprites);
 			foreach (var key in animation.mainlineKeys) {
@@ -53,10 +57,21 @@ namespace Spriter2UnityDX.Animations {
 					}
 				}
 			}
-			if (OriginalClips.ContainsKey (animation.name))
-				EditorUtility.CopySerialized (clip, OriginalClips [animation.name]);
-			else
-				AssetDatabase.AddObjectToAsset (clip, PrefabPath);
+			if (animation.looping) {
+				clip.wrapMode = WrapMode.Loop;
+				var settings = AnimationUtility.GetAnimationClipSettings (clip);
+				settings.loopTime = true;
+				AnimationUtility.SetAnimationClipSettings (clip, settings);
+			}
+			else clip.wrapMode = WrapMode.ClampForever;
+			if (OriginalClips.ContainsKey (animation.name)) {
+				var oldClip = OriginalClips [animation.name];
+				EditorUtility.CopySerialized (clip, oldClip);
+				clip = oldClip;
+			}
+			else AssetDatabase.AddObjectToAsset (clip, PrefabPath);
+			if (ArrayUtility.Find (Controller.animationClips, x => x.name == clip.name) == null)
+				Controller.AddMotion (clip);
 		}
 
 		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation) {
@@ -90,8 +105,6 @@ namespace Spriter2UnityDX.Animations {
 				case ChangedValues.Alpha :
 					SetKeys (kvPair.Value, timeLine, x => x.a, animation);
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
-					Debug.Log ("Attempting to change alpha");
-					Debug.Log (child.GetComponent<SpriteRenderer> ());
 					break;
 				}
 			}

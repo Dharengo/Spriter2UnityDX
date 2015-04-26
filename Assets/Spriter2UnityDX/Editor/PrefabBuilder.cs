@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.Animations;
 using System.IO;
 using System.Collections.Generic;
 
@@ -18,27 +19,40 @@ namespace Spriter2UnityDX.Prefabs {
 			foreach (var folder in obj.folders ) {
 				var files = folders [folder.id] = new Dictionary<int, Sprite> ();
 				foreach (var file in folder.files) {
-					var path = Path.Combine (directory, file.name);
+					var path = string.Format ("{0}/{1}", directory, file.name);
 					files [file.id] = GetSpriteAtPath (path, ref success);
 				}
 			}
 			if (!success) return false;
 			foreach (var entity in obj.entities) {
 				var name = entity.name;
-				var path = Path.Combine (directory, name + ".prefab");
-				var prefab = AssetDatabase.LoadAssetAtPath (path, typeof(GameObject));
+				var prefabPath = string.Format ("{0}/{1}.prefab", directory, name);
+				var controllerPath = string.Format ("{0}/{1}.controller", directory, name);
+				var prefab = AssetDatabase.LoadAssetAtPath (prefabPath, typeof(GameObject));
 				GameObject instance;
 				if (prefab == null) {
 					instance = new GameObject (name);
-					prefab = PrefabUtility.CreatePrefab (path, instance, ReplacePrefabOptions.ConnectToPrefab);
+					prefab = PrefabUtility.CreatePrefab (prefabPath, instance, ReplacePrefabOptions.ConnectToPrefab);
 				}
 				else instance = (GameObject)PrefabUtility.InstantiatePrefab (prefab);
+				var animator = instance.GetComponent<Animator> ();
+				if (animator == null) animator = instance.AddComponent<Animator> ();
+				AnimatorController controller = null;
+				if (animator.runtimeAnimatorController != null) {
+					controller = animator.runtimeAnimatorController as AnimatorController ??
+						(AnimatorController)((AnimatorOverrideController)animator.runtimeAnimatorController).runtimeAnimatorController;
+				}
+				if (controller == null) { 
+					controller = (AnimatorController)AssetDatabase.LoadAssetAtPath (controllerPath, typeof(AnimatorController)) ??
+						AnimatorController.CreateAnimatorControllerAtPath (controllerPath);
+					animator.runtimeAnimatorController = controller;
+				}
 				var bones = new Dictionary<int, Transform> ();
 				bones [-1] = instance.transform;
 				var sprites = new Dictionary<int, Transform> ();
 				var defaultBones = new Dictionary<int, SpatialInfo> ();
 				var defaultSprites = new Dictionary<int, SpriteInfo> ();
-				var animBuilder = new AnimationBuilder (obj, folders, bones, sprites, defaultBones, defaultSprites, path, prefab);
+				var animBuilder = new AnimationBuilder (obj, folders, bones, sprites, defaultBones, defaultSprites, prefabPath, prefab, controller);
 				var firstAnim = true;
 				foreach (var animation in entity.animations) {
 					var timeLines = new Dictionary<int, TimeLine> ();
@@ -76,9 +90,8 @@ namespace Spriter2UnityDX.Prefabs {
 									child.SetParent (parent);
 								}
 								sprites [oref.id] = child;
-								var renderer = child.GetComponent<SpriteRenderer> ();
-								if (renderer == null)
-									renderer = child.gameObject.AddComponent<SpriteRenderer> ();
+								var renderer = child.GetComponent<SpriteRenderer> (); 
+								if (renderer == null) renderer = child.gameObject.AddComponent<SpriteRenderer> ();
 								var spriteInfo = defaultSprites [oref.id] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;
 								renderer.sprite = folders [spriteInfo.folder] [spriteInfo.file];
 								child.localPosition = new Vector3 (spriteInfo.x, spriteInfo.y, oref.z_index * -0.001f);
