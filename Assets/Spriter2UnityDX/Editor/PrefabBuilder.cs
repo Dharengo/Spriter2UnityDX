@@ -52,7 +52,7 @@ namespace Spriter2UnityDX.Prefabs {
 				var sprites = new Dictionary<int, Transform> ();
 				var defaultBones = new Dictionary<int, SpatialInfo> ();
 				var defaultSprites = new Dictionary<int, SpriteInfo> ();
-				var animBuilder = new AnimationBuilder (obj, folders, bones, sprites, defaultBones, defaultSprites, prefabPath, prefab, controller);
+				var animBuilder = new AnimationBuilder (folders, bones, sprites, defaultBones, defaultSprites, prefabPath, controller);
 				var firstAnim = true;
 				foreach (var animation in entity.animations) {
 					var timeLines = new Dictionary<int, TimeLine> ();
@@ -90,6 +90,8 @@ namespace Spriter2UnityDX.Prefabs {
 									child.SetParent (parent);
 								}
 								sprites [oref.id] = child;
+								var swapper = child.GetComponent<SpriteSwapper> ();
+								if (swapper != null) DestroyImmediate (swapper);
 								var renderer = child.GetComponent<SpriteRenderer> (); 
 								if (renderer == null) renderer = child.gameObject.AddComponent<SpriteRenderer> ();
 								var spriteInfo = defaultSprites [oref.id] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;

@@ -8,26 +8,24 @@ using Object = UnityEngine.Object;
 namespace Spriter2UnityDX.Animations {
 	using Importing;
 	public class AnimationBuilder : Object {
-		private ScmlObject Scml;
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
 		private IDictionary<int, Transform> Bones;
 		private IDictionary<int, Transform> Sprites;
 		private string PrefabPath;
-		private Object Prefab;
 		private Transform Root;
 		private IDictionary<string, AnimationClip> OriginalClips = new Dictionary <string, AnimationClip> ();
 		private IDictionary<int, SpatialInfo> DefaultBones;
 		private IDictionary<int, SpriteInfo> DefaultSprites;
 		private AnimatorController Controller;
 
-		public AnimationBuilder (ScmlObject obj, IDictionary<int, IDictionary<int, Sprite>> folders,
+		public AnimationBuilder (IDictionary<int, IDictionary<int, Sprite>> folders,
 		                         IDictionary<int, Transform> bones, IDictionary<int, Transform> sprites,
 		                         IDictionary<int, SpatialInfo> defaultBones, IDictionary<int, SpriteInfo> defaultSprites,
-		                         string prefabPath, Object prefab, AnimatorController controller) {
-			Scml = obj; Folders = folders; Bones = bones; 
+		                         string prefabPath, AnimatorController controller) {
+			Folders = folders; Bones = bones; 
 			Sprites = sprites; PrefabPath = prefabPath; 
 			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
-			Prefab = prefab; Root = Bones [-1]; Controller = controller;
+			Root = Bones [-1]; Controller = controller;
 
 			foreach (var item in AssetDatabase.LoadAllAssetRepresentationsAtPath(prefabPath)) {
 				var clip = item as AnimationClip;
@@ -38,9 +36,6 @@ namespace Spriter2UnityDX.Animations {
 		public void Build (Animation animation, IDictionary<int, TimeLine> timeLines) {
 			var clip = new AnimationClip ();
 			clip.name = animation.name;
-			var unused = new List<Transform> ();
-			foreach (var kvPair in Sprites)
-				unused.Add (kvPair.Value);
 			var activeBones = new Dictionary<int, Transform> (Bones);
 			var activeSprites = new Dictionary<int, Transform> (Sprites);
 			foreach (var key in animation.mainlineKeys) {
@@ -106,6 +101,16 @@ namespace Spriter2UnityDX.Animations {
 					SetKeys (kvPair.Value, timeLine, x => x.a, animation);
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
 					break;
+				case ChangedValues.Sprite :
+					var swapper = child.GetComponent<SpriteSwapper> ();
+					if (swapper == null) {
+						swapper = child.gameObject.AddComponent<SpriteSwapper> ();
+						var info = (SpriteInfo)defaultInfo;
+						swapper.Sprites = new[] {Folders [info.folder] [info.file]};
+					}
+					SetKeys (kvPair.Value, timeLine, ref swapper.Sprites, animation);
+					clip.SetCurve (childPath, typeof(SpriteSwapper), "DisplayedSprite", kvPair.Value);
+					break;
 				}
 			}
 			clip.EnsureQuaternionContinuity ();
@@ -115,10 +120,28 @@ namespace Spriter2UnityDX.Animations {
 			foreach (var key in timeLine.keys) {
 				curve.AddKey (key.time, infoValue (key.info));
 			}
-			if (animation.looping) {
-				var key = timeLine.keys[0];
-				curve.AddKey (animation.length, infoValue (key.info));
+			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
+			curve.AddKey (animation.length, infoValue (timeLine.keys [lastIndex].info));
+		}
+
+		private void SetKeys (AnimationCurve curve, TimeLine timeLine, ref Sprite[] sprites, Animation animation) {
+			const float inf = float.PositiveInfinity;
+			foreach (var key in timeLine.keys) {
+				var info = (SpriteInfo)key.info;
+				curve.AddKey (new Keyframe (key.time, GetIndexOrAdd (ref sprites, Folders [info.folder] [info.file]), inf, inf));
 			}
+			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
+			var lastInfo = (SpriteInfo)timeLine.keys [lastIndex].info;
+			curve.AddKey (new Keyframe (animation.length, GetIndexOrAdd (ref sprites, Folders [lastInfo.folder] [lastInfo.file]), inf, inf));
+		}
+
+		private int GetIndexOrAdd (ref Sprite[] sprites, Sprite sprite) {
+			var index = ArrayUtility.IndexOf (sprites, sprite);
+			if (index < 0) {
+				ArrayUtility.Add (ref sprites, sprite);
+				index = ArrayUtility.IndexOf (sprites, sprite);
+			}
+			return index;
 		}
 								
 		private IDictionary<Transform, string> ChildPaths = new Dictionary<Transform, string> ();
@@ -147,7 +170,7 @@ namespace Spriter2UnityDX.Animations {
 				if (!rv.ContainsKey (ChangedValues.Alpha) && defaultInfo.a != info.a)
 					rv [ChangedValues.Alpha] = new AnimationCurve ();
 				var scontrol = defaultInfo as SpriteInfo;
-				if (!rv.ContainsKey (ChangedValues.Sprite) && scontrol != null) {
+				if (scontrol != null && !rv.ContainsKey (ChangedValues.Sprite)) {
 					var sinfo = (SpriteInfo)info;
 					if (scontrol.file != sinfo.file || scontrol.folder != sinfo.folder)
 						rv [ChangedValues.Sprite] = new AnimationCurve ();
