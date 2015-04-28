@@ -44,8 +44,9 @@ namespace Spriter2UnityDX.Prefabs {
 						AnimatorController.CreateAnimatorControllerAtPath (controllerPath);
 					animator.runtimeAnimatorController = controller;
 				}
+				var parents = new Dictionary<int, Transform> ();
 				var bones = new Dictionary<int, Transform> ();
-				bones [-1] = instance.transform;
+				parents [-1] = bones [-1] = instance.transform;
 				var sprites = new Dictionary<int, Transform> ();
 				var defaultBones = new Dictionary<int, SpatialInfo> ();
 				var defaultSprites = new Dictionary<int, SpriteInfo> ();
@@ -56,20 +57,20 @@ namespace Spriter2UnityDX.Prefabs {
 					foreach (var timeLine in animation.timelines)
 						timeLines [timeLine.id] = timeLine;
 					foreach (var key in animation.mainlineKeys) {
-						var boneRefs = new Queue<Ref> (key.boneRefs);
+						var boneRefs = new Queue<Ref> (key.boneRefs ?? new Ref[0]);
 						while (boneRefs.Count > 0) {
 							var bone = boneRefs.Dequeue ();
-							if (!bones.ContainsKey (bone.id)) {
-								if (bones.ContainsKey (bone.parent)) {
-									var parent = bones [bone.parent];
+							if (!bones.ContainsKey (bone.timeline)) {
+								if (parents.ContainsKey (bone.parent)) {
+									var parent = parents [bone.parent];
 									var timeLine = timeLines [bone.timeline];
 									var child = parent.Find (timeLine.name);
 									if (child == null) {
 										child = new GameObject (timeLine.name).transform;
 										child.SetParent (parent);
 									}
-									bones [bone.id] = child;
-									var spatialInfo = defaultBones [bone.id] = ArrayUtility.Find (timeLine.keys, x => x.id == bone.key).info;
+									bones [bone.timeline] = parents [bone.id] = child;
+									var spatialInfo = defaultBones [bone.timeline] = ArrayUtility.Find (timeLine.keys, x => x.id == bone.key).info;
 									child.localPosition = new Vector3 (spatialInfo.x, spatialInfo.y, 0f);
 									child.localRotation = spatialInfo.rotation;
 									child.localScale = new Vector3 (spatialInfo.scale_x, spatialInfo.scale_y, 1f);
@@ -78,20 +79,20 @@ namespace Spriter2UnityDX.Prefabs {
 							}
 						}
 						foreach (var oref in key.objectRefs) {
-							if (!sprites.ContainsKey (oref.id)) {
-								var parent = bones [oref.parent];
+							if (!sprites.ContainsKey (oref.timeline)) {
+								var parent = parents [oref.parent];
 								var timeLine = timeLines [oref.timeline];
 								var child = parent.Find (timeLine.name);
 								if (child == null) {
 									child = new GameObject (timeLine.name).transform;
 									child.SetParent (parent);
 								}
-								sprites [oref.id] = child;
+								sprites [oref.timeline] = child;
 								var swapper = child.GetComponent<SpriteSwapper> ();
 								if (swapper != null) DestroyImmediate (swapper);
 								var renderer = child.GetComponent<SpriteRenderer> (); 
 								if (renderer == null) renderer = child.gameObject.AddComponent<SpriteRenderer> ();
-								var spriteInfo = defaultSprites [oref.id] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;
+								var spriteInfo = defaultSprites [oref.timeline] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;
 								renderer.sprite = folders [spriteInfo.folder] [spriteInfo.file];
 								child.localPosition = new Vector3 (spriteInfo.x, spriteInfo.y, oref.z_index * -0.001f);
 								child.localEulerAngles = new Vector3 (0f, 0f, spriteInfo.angle);
@@ -99,12 +100,12 @@ namespace Spriter2UnityDX.Prefabs {
 								var color = renderer.color;
 								color.a = spriteInfo.a;
 								renderer.color = color;
-								//if (!firstAnim) child.gameObject.SetActive (false);
+								if (!firstAnim) child.gameObject.SetActive (false);
 							}
 						}
+						if (firstAnim) firstAnim = false;
 					}
 					animBuilder.Build (animation, timeLines);
-					if (firstAnim) firstAnim = false;
 				}
 				PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
 				DestroyImmediate (instance);
@@ -113,7 +114,6 @@ namespace Spriter2UnityDX.Prefabs {
 		}
 
 		private IList<TextureImporter> InvalidImporters = new List<TextureImporter> ();
-		//TODO: Something about sprites and pivots
 		private Sprite GetSpriteAtPath (string path, File file, ref bool success) {
 			var importer = TextureImporter.GetAtPath (path) as TextureImporter;
 			if (importer != null) {

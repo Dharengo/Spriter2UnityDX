@@ -8,6 +8,7 @@ using Object = UnityEngine.Object;
 namespace Spriter2UnityDX.Animations {
 	using Importing;
 	public class AnimationBuilder : Object {
+		private const float inf = float.PositiveInfinity;
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
 		private IDictionary<int, Transform> Bones;
 		private IDictionary<int, Transform> Sprites;
@@ -39,26 +40,35 @@ namespace Spriter2UnityDX.Animations {
 			var activeBones = new Dictionary<int, Transform> (Bones);
 			var activeSprites = new Dictionary<int, Transform> (Sprites);
 			foreach (var key in animation.mainlineKeys) {
-				foreach (var bref in key.boneRefs) {
-					if (activeBones.ContainsKey (bref.id)) {
-						SetCurves (Bones [bref.id], DefaultBones [bref.id], timeLines [bref.timeline], clip, animation);
-						activeBones.Remove (bref.id);
+				foreach (var bref in key.boneRefs ?? new Ref[0]) {
+					if (activeBones.ContainsKey (bref.timeline)) {
+						SetCurves (Bones [bref.timeline], DefaultBones [bref.timeline], timeLines [bref.timeline], clip, animation);
+						activeBones.Remove (bref.timeline);
 					}
 				}
 				foreach (var sref in key.objectRefs) {
-					if (activeSprites.ContainsKey (sref.id)) {
-						SetCurves (Sprites [sref.id], DefaultSprites [sref.id], timeLines [sref.timeline], clip, animation);
-						activeSprites.Remove (sref.id);
+					if (activeSprites.ContainsKey (sref.timeline)) {
+						var sprite = Sprites [sref.timeline];
+						SetCurves (sprite, DefaultSprites [sref.timeline], timeLines [sref.timeline], clip, animation);
+						SetActiveCurve (sprite, animation.mainlineKeys, sref, clip);
+						activeSprites.Remove (sref.timeline);
+					}
+				}
+				foreach (var kvPair in activeSprites) {
+					if (kvPair.Value.gameObject.activeSelf) {
+						var curve =  new AnimationCurve (new Keyframe (0f, 0f, inf, inf));
+						clip.SetCurve (GetPathToChild (kvPair.Value), typeof(GameObject), "m_IsActive", curve);
 					}
 				}
 			}
+			var settings = AnimationUtility.GetAnimationClipSettings (clip);
+			settings.stopTime = animation.length;
 			if (animation.looping) {
 				clip.wrapMode = WrapMode.Loop;
-				var settings = AnimationUtility.GetAnimationClipSettings (clip);
 				settings.loopTime = true;
-				AnimationUtility.SetAnimationClipSettings (clip, settings);
 			}
 			else clip.wrapMode = WrapMode.ClampForever;
+			AnimationUtility.SetAnimationClipSettings (clip, settings);
 			if (OriginalClips.ContainsKey (animation.name)) {
 				var oldClip = OriginalClips [animation.name];
 				EditorUtility.CopySerialized (clip, oldClip);
@@ -116,6 +126,25 @@ namespace Spriter2UnityDX.Animations {
 			clip.EnsureQuaternionContinuity ();
 		}
 
+		private void SetActiveCurve (Transform child, MainLineKey[] keys, Ref sref, AnimationClip clip) {
+			var active = child.gameObject.activeSelf;
+			var kfs = new List<Keyframe> ();
+			foreach (var key in keys) {
+				var exists = ArrayUtility.Find (key.objectRefs, x => x.timeline == sref.timeline) != null;
+				if (exists && !active) {
+					if (kfs.Count <= 0 && key.time > 0) kfs.Add (new Keyframe (0f, 0f, inf, inf));
+					kfs.Add (new Keyframe (key.time, 1f, inf, inf));
+					active = true;
+				}
+				else if (!exists && active) {
+					if (kfs.Count <= 0 && key.time > 0) kfs.Add (new Keyframe (0f, 1f, inf, inf));
+					kfs.Add (new Keyframe (key.time, 0f, inf, inf));
+					active = false;
+				}
+			}
+			if (kfs.Count > 0) clip.SetCurve (GetPathToChild (child), typeof(GameObject), "m_IsActive", new AnimationCurve (kfs.ToArray ()));
+		}
+
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, Func<SpatialInfo, float> infoValue, Animation animation) {
 			foreach (var key in timeLine.keys) {
 				curve.AddKey (key.time, infoValue (key.info));
@@ -125,7 +154,6 @@ namespace Spriter2UnityDX.Animations {
 		}
 
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, ref Sprite[] sprites, Animation animation) {
-			const float inf = float.PositiveInfinity;
 			foreach (var key in timeLine.keys) {
 				var info = (SpriteInfo)key.info;
 				curve.AddKey (new Keyframe (key.time, GetIndexOrAdd (ref sprites, Folders [info.folder] [info.file]), inf, inf));
