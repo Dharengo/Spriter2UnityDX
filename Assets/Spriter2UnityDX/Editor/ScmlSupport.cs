@@ -100,7 +100,7 @@ namespace Spriter2UnityDX.Importing {
 	}
 	
 	public class SpatialInfo {
-		public SpatialInfo () {x=0; y=0; angle=0; scale_x=1; scale_y=1; a = 1;}
+		public SpatialInfo () {x=0; y=0; angle=0; scale_x=1; scale_y=1; a=1;}
 		private float _x;
 		[XmlAttribute] public float x { 
 			get { return _x; }
@@ -120,11 +120,6 @@ namespace Spriter2UnityDX.Importing {
 		[XmlAttribute] public float scale_x { get; set; } 
 		[XmlAttribute] public float scale_y { get; set; } 
 		[XmlAttribute] public float a { get; set; }
-
-		public virtual bool IsIdentical (SpatialInfo other) {
-			return x == other.x && y == other.y && angle == other.angle &&
-				scale_x == other.scale_x && scale_y == other.scale_y && a == other.a;
-		}
 	}
 	
 	public class SpriteInfo : SpatialInfo {
@@ -133,14 +128,6 @@ namespace Spriter2UnityDX.Importing {
 		[XmlAttribute] public int file { get; set; }
 		[XmlAttribute] public float pivot_x { get; set; }
 		[XmlAttribute] public float pivot_y { get; set; }
-
-		public override bool IsIdentical (SpatialInfo other) {
-			var spinfo = other as SpriteInfo;
-			if (spinfo == null) return false;
-			return base.IsIdentical (other) && folder == spinfo.folder &&
-				file == spinfo.file && pivot_x == spinfo.pivot_x &&
-				pivot_y == spinfo.pivot_y;
-		}
 	}
 
 	public abstract class ScmlElement {

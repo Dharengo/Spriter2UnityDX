@@ -27,15 +27,10 @@ namespace Spriter2UnityDX.PostProcessing {
 		}
 
 		private static void ProcessFiles (IList<string> paths) {
-			var invalidImporters = new List<TextureImporter> ();
-			var builder = new PrefabBuilder (invalidImporters);
+			var builder = new PrefabBuilder ();
 			foreach (var path in paths) 
 				if (!builder.Build (Deserialize (path), path))
 					cachedPaths.Add (path);
-			foreach (var importer in invalidImporters) {
-				importer.textureType = TextureImporterType.Sprite;
-				importer.SaveAndReimport ();
-			}
 			AssetDatabase.Refresh ();
 			AssetDatabase.SaveAssets ();
 		}

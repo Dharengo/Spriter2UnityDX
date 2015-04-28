@@ -8,9 +8,6 @@ namespace Spriter2UnityDX.Prefabs {
 	using Importing; using Animations;
 	//Exactly what's written on the tin
 	public class PrefabBuilder : Object {
-		public PrefabBuilder (IList<TextureImporter> invalidImporters) {
-			InvalidImporters = invalidImporters;
-		}
 
 		public bool Build (ScmlObject obj, string scmlPath) {
 			var success = true;
@@ -20,7 +17,7 @@ namespace Spriter2UnityDX.Prefabs {
 				var files = folders [folder.id] = new Dictionary<int, Sprite> ();
 				foreach (var file in folder.files) {
 					var path = string.Format ("{0}/{1}", directory, file.name);
-					files [file.id] = GetSpriteAtPath (path, ref success);
+					files [file.id] = GetSpriteAtPath (path, file, ref success);
 				}
 			}
 			if (!success) return false;
@@ -102,7 +99,7 @@ namespace Spriter2UnityDX.Prefabs {
 								var color = renderer.color;
 								color.a = spriteInfo.a;
 								renderer.color = color;
-								if (!firstAnim) child.gameObject.SetActive (false);
+								//if (!firstAnim) child.gameObject.SetActive (false);
 							}
 						}
 					}
@@ -111,24 +108,30 @@ namespace Spriter2UnityDX.Prefabs {
 				}
 				PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
 				DestroyImmediate (instance);
-				break;
 			}
 			return success;
 		}
 
-		private IList<TextureImporter> InvalidImporters;
-		private Sprite GetSpriteAtPath (string path, ref bool success) {
-			var sprite = (Sprite)AssetDatabase.LoadAssetAtPath (path, typeof(Sprite));
-			if (sprite == null) {
-				var importer = TextureImporter.GetAtPath (path) as TextureImporter;
-				if (importer != null) {
+		private IList<TextureImporter> InvalidImporters = new List<TextureImporter> ();
+		//TODO: Something about sprites and pivots
+		private Sprite GetSpriteAtPath (string path, File file, ref bool success) {
+			var importer = TextureImporter.GetAtPath (path) as TextureImporter;
+			if (importer != null) {
+				if ((importer.textureType != TextureImporterType.Sprite || importer.spritePivot.x != file.pivot_x 
+				     || importer.spritePivot.y != file.pivot_y) && !InvalidImporters.Contains (importer)) {
 					if (success) success = false;
-					if (!InvalidImporters.Contains (importer)) 
-						InvalidImporters.Add (importer);
+					var settings = new TextureImporterSettings ();
+					importer.ReadTextureSettings (settings);
+					settings.ApplyTextureType (TextureImporterType.Sprite, true);
+					settings.spriteMode = (int)SpriteAlignment.Custom;
+					settings.spritePivot = new Vector2 (file.pivot_x, file.pivot_y);
+					importer.SetTextureSettings (settings);
+					importer.SaveAndReimport ();
+					InvalidImporters.Add (importer);
 				}
-				else Debug.LogErrorFormat ("Error: No Sprite was found at {0}", path);
 			}
-			return sprite;
+			else Debug.LogErrorFormat ("Error: No Sprite was found at {0}", path);
+			return (Sprite)AssetDatabase.LoadAssetAtPath (path, typeof(Sprite));
 		}
 	}
 }
