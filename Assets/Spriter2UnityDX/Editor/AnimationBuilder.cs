@@ -1,32 +1,38 @@
-﻿using UnityEngine;
+﻿//This project is open source. Anyone can use any part of this code however they wish
+//Feel free to use this code in your own projects, or expand on this code
+//If you have any improvements to the code itself, please visit
+//https://github.com/Dharengo/Spriter2UnityDX and share your suggestions by creating a fork
+//-Dengar/Dharengo
+
+using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
 using System;
 using System.Collections.Generic;
-using Object = UnityEngine.Object;
 
 namespace Spriter2UnityDX.Animations {
 	using Importing;
-	public class AnimationBuilder : Object {
+	//Exactly what's written on the tin
+	public class AnimationBuilder : UnityEngine.Object {
+		//Only one of these is made for each Entity, and these globals are the same for every
+		//Animation that belongs to these entities
 		private const float inf = float.PositiveInfinity;
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
-		private IDictionary<int, Transform> Bones;
-		private IDictionary<int, Transform> Sprites;
+		private IDictionary<string, Transform> Transforms;
 		private string PrefabPath;
 		private Transform Root;
 		private IDictionary<string, AnimationClip> OriginalClips = new Dictionary <string, AnimationClip> ();
-		private IDictionary<int, SpatialInfo> DefaultBones;
-		private IDictionary<int, SpriteInfo> DefaultSprites;
+		private IDictionary<string, SpatialInfo> DefaultBones;
+		private IDictionary<string, SpriteInfo> DefaultSprites;
 		private AnimatorController Controller;
 
 		public AnimationBuilder (IDictionary<int, IDictionary<int, Sprite>> folders,
-		                         IDictionary<int, Transform> bones, IDictionary<int, Transform> sprites,
-		                         IDictionary<int, SpatialInfo> defaultBones, IDictionary<int, SpriteInfo> defaultSprites,
+		                         IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
+		                         IDictionary<string, SpriteInfo> defaultSprites,
 		                         string prefabPath, AnimatorController controller) {
-			Folders = folders; Bones = bones; 
-			Sprites = sprites; PrefabPath = prefabPath; 
+			Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
 			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
-			Root = Bones [-1]; Controller = controller;
+			Root = Transforms ["rootTransform"]; Controller = controller;
 
 			foreach (var item in AssetDatabase.LoadAllAssetRepresentationsAtPath(prefabPath)) {
 				var clip = item as AnimationClip;
@@ -37,52 +43,53 @@ namespace Spriter2UnityDX.Animations {
 		public void Build (Animation animation, IDictionary<int, TimeLine> timeLines) {
 			var clip = new AnimationClip ();
 			clip.name = animation.name;
-			var activeBones = new Dictionary<int, Transform> (Bones);
-			var activeSprites = new Dictionary<int, Transform> (Sprites);
-			foreach (var key in animation.mainlineKeys) {
+			var pendingTransforms = new Dictionary<string, Transform> (Transforms); //This Dictionary will shrink in size for every transform
+			foreach (var key in animation.mainlineKeys) { 						//that is considered "used"
 				foreach (var bref in key.boneRefs ?? new Ref[0]) {
-					if (activeBones.ContainsKey (bref.timeline)) {
-						SetCurves (Bones [bref.timeline], DefaultBones [bref.timeline], timeLines [bref.timeline], clip, animation);
-						activeBones.Remove (bref.timeline);
+					var timeLine = timeLines [bref.timeline];
+					if (pendingTransforms.ContainsKey (timeLine.name)) { //Skip it if it's already "used"
+						SetCurves (Transforms [timeLine.name], DefaultBones [timeLine.name], timeLine, clip, animation);
+						pendingTransforms.Remove (timeLine.name);
 					}
 				}
 				foreach (var sref in key.objectRefs) {
-					if (activeSprites.ContainsKey (sref.timeline)) {
-						var sprite = Sprites [sref.timeline];
-						SetCurves (sprite, DefaultSprites [sref.timeline], timeLines [sref.timeline], clip, animation);
+					var timeLine = timeLines [sref.timeline];
+					if (pendingTransforms.ContainsKey (timeLine.name)) {
+						var sprite = Transforms [timeLine.name];
+						SetCurves (sprite, DefaultSprites [timeLine.name], timeLine, clip, animation);
 						SetActiveCurve (sprite, animation.mainlineKeys, sref, clip);
-						activeSprites.Remove (sref.timeline);
+						pendingTransforms.Remove (timeLine.name);
 					}
 				}
-				foreach (var kvPair in activeSprites) {
-					if (kvPair.Value.gameObject.activeSelf) {
+				foreach (var kvPair in pendingTransforms) { //Disable the remaining tansforms if they are sprites and not already disabled
+					if (DefaultSprites.ContainsKey (kvPair.Key) && kvPair.Value.gameObject.activeSelf) {
 						var curve =  new AnimationCurve (new Keyframe (0f, 0f, inf, inf));
 						clip.SetCurve (GetPathToChild (kvPair.Value), typeof(GameObject), "m_IsActive", curve);
 					}
 				}
 			}
 			var settings = AnimationUtility.GetAnimationClipSettings (clip);
-			settings.stopTime = animation.length;
+			settings.stopTime = animation.length; //Set the animation's length and other settings
 			if (animation.looping) {
 				clip.wrapMode = WrapMode.Loop;
 				settings.loopTime = true;
 			}
 			else clip.wrapMode = WrapMode.ClampForever;
 			AnimationUtility.SetAnimationClipSettings (clip, settings);
-			if (OriginalClips.ContainsKey (animation.name)) {
+			if (OriginalClips.ContainsKey (animation.name)) { //If the clip already exists, copy this clip into the old one
 				var oldClip = OriginalClips [animation.name];
 				EditorUtility.CopySerialized (clip, oldClip);
 				clip = oldClip;
 			}
-			else AssetDatabase.AddObjectToAsset (clip, PrefabPath);
+			else AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
 			if (ArrayUtility.Find (Controller.animationClips, x => x.name == clip.name) == null)
-				Controller.AddMotion (clip);
+				Controller.AddMotion (clip); //Add this clip to the AnimatorController unless it's already there
 		}
 
 		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation) {
 			var childPath = GetPathToChild (child);
-			foreach (var kvPair in GetCurves (timeLine, defaultInfo)) {
-				switch (kvPair.Key) {
+			foreach (var kvPair in GetCurves (timeLine, defaultInfo)) { //Makes sure that curves are only added for properties 
+				switch (kvPair.Key) {									//that actually mutate in the animation
 				case ChangedValues.PositionX :
 					SetKeys (kvPair.Value, timeLine, x => x.x, animation);
 					clip.SetCurve (childPath, typeof(Transform), "localPosition.x", kvPair.Value);
@@ -113,7 +120,7 @@ namespace Spriter2UnityDX.Animations {
 					break;
 				case ChangedValues.Sprite :
 					var swapper = child.GetComponent<SpriteSwapper> ();
-					if (swapper == null) {
+					if (swapper == null) { //Add a Swapper if one doesn't already exist
 						swapper = child.gameObject.AddComponent<SpriteSwapper> ();
 						var info = (SpriteInfo)defaultInfo;
 						swapper.Sprites = new[] {Folders [info.folder] [info.file]};
@@ -127,9 +134,9 @@ namespace Spriter2UnityDX.Animations {
 		}
 
 		private void SetActiveCurve (Transform child, MainLineKey[] keys, Ref sref, AnimationClip clip) {
-			var active = child.gameObject.activeSelf;
-			var kfs = new List<Keyframe> ();
-			foreach (var key in keys) {
+			var active = child.gameObject.activeSelf; //If the sprite or bone isn't present in the mainline,
+			var kfs = new List<Keyframe> (); //Disable the GameObject if it isn't already disabled
+			foreach (var key in keys) { //If it is present, enable the GameObject if it isn't already enabled
 				var exists = ArrayUtility.Find (key.objectRefs, x => x.timeline == sref.timeline) != null;
 				if (exists && !active) {
 					if (kfs.Count <= 0 && key.time > 0) kfs.Add (new Keyframe (0f, 0f, inf, inf));
@@ -141,31 +148,31 @@ namespace Spriter2UnityDX.Animations {
 					kfs.Add (new Keyframe (key.time, 0f, inf, inf));
 					active = false;
 				}
-			}
+			} //Only add this curve if there is actually a mutation
 			if (kfs.Count > 0) clip.SetCurve (GetPathToChild (child), typeof(GameObject), "m_IsActive", new AnimationCurve (kfs.ToArray ()));
 		}
 
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, Func<SpatialInfo, float> infoValue, Animation animation) {
-			foreach (var key in timeLine.keys) {
+			foreach (var key in timeLine.keys) { //Create a keyframe for every key on its personal TimeLine
 				curve.AddKey (key.time, infoValue (key.info));
 			}
-			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
-			curve.AddKey (animation.length, infoValue (timeLine.keys [lastIndex].info));
+			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1; //Depending on the loop type, duplicate the first or last frame
+			curve.AddKey (animation.length, infoValue (timeLine.keys [lastIndex].info)); //At the end of the curve
 		}
 
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, ref Sprite[] sprites, Animation animation) {
-			foreach (var key in timeLine.keys) {
+			foreach (var key in timeLine.keys) { //Create a key for every key on its personal TimeLine
 				var info = (SpriteInfo)key.info;
 				curve.AddKey (new Keyframe (key.time, GetIndexOrAdd (ref sprites, Folders [info.folder] [info.file]), inf, inf));
-			}
+			} //InTangent and OutTangent are set to Infinity to make transitions instant instead of gradual
 			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
 			var lastInfo = (SpriteInfo)timeLine.keys [lastIndex].info;
 			curve.AddKey (new Keyframe (animation.length, GetIndexOrAdd (ref sprites, Folders [lastInfo.folder] [lastInfo.file]), inf, inf));
 		}
 
 		private int GetIndexOrAdd (ref Sprite[] sprites, Sprite sprite) {
-			var index = ArrayUtility.IndexOf (sprites, sprite);
-			if (index < 0) {
+			var index = ArrayUtility.IndexOf (sprites, sprite); //If the array already contains the sprite, return index
+			if (index < 0) {									//Otherwise, add sprite to array, then return index
 				ArrayUtility.Add (ref sprites, sprite);
 				index = ArrayUtility.IndexOf (sprites, sprite);
 			}
@@ -173,15 +180,15 @@ namespace Spriter2UnityDX.Animations {
 		}
 								
 		private IDictionary<Transform, string> ChildPaths = new Dictionary<Transform, string> ();
-		private string GetPathToChild (Transform child) {
-			if (ChildPaths.ContainsKey (child)) return ChildPaths [child];
+		private string GetPathToChild (Transform child) { //Caches the relative paths to children so they only have to be calculated once
+			if (ChildPaths.ContainsKey (child)) return ChildPaths [child]; 
 			else return ChildPaths [child] = AnimationUtility.CalculateTransformPath (child, Root);
 		}
 
 		private enum ChangedValues { None, Sprite, PositionX, PositionY, RotationZ, RotationW, ScaleX, ScaleY, Alpha }
 		private IDictionary<ChangedValues, AnimationCurve> GetCurves (TimeLine timeLine, SpatialInfo defaultInfo) {
-			var rv = new Dictionary<ChangedValues, AnimationCurve> ();
-			for (var i = 0; i < timeLine.keys.Length; i++) {
+			var rv = new Dictionary<ChangedValues, AnimationCurve> (); //This method checks every animatable property for changes
+			for (var i = 0; i < timeLine.keys.Length; i++) {		//And creates a curve for that property if changes are detected
 				var info = timeLine.keys [i].info;
 				if (!rv.ContainsKey (ChangedValues.PositionX) && defaultInfo.x != info.x) 
 					rv [ChangedValues.PositionX] = new AnimationCurve ();

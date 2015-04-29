@@ -1,4 +1,10 @@
-﻿using UnityEngine;
+﻿//This project is open source. Anyone can use any part of this code however they wish
+//Feel free to use this code in your own projects, or expand on this code
+//If you have any improvements to the code itself, please visit
+//https://github.com/Dharengo/Spriter2UnityDX and share your suggestions by creating a fork
+//-Dengar/Dharengo
+
+using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
 using System.IO;
@@ -10,67 +16,69 @@ namespace Spriter2UnityDX.Prefabs {
 	public class PrefabBuilder : Object {
 
 		public bool Build (ScmlObject obj, string scmlPath) {
+			//The process begins by loading up all the textures
 			var success = true;
 			var directory = Path.GetDirectoryName (scmlPath);
-			var folders = new Dictionary<int, IDictionary<int, Sprite>> ();
-			foreach (var folder in obj.folders ) {
-				var files = folders [folder.id] = new Dictionary<int, Sprite> ();
+			var folders = new Dictionary<int, IDictionary<int, Sprite>> (); //I find these slightly more useful than Lists because
+			foreach (var folder in obj.folders ) { 							//you can be 100% sure that the ids match
+				var files = folders [folder.id] = new Dictionary<int, Sprite> (); //And items can be added in any order
 				foreach (var file in folder.files) {
 					var path = string.Format ("{0}/{1}", directory, file.name);
 					files [file.id] = GetSpriteAtPath (path, file, ref success);
 				}
-			}
-			if (!success) return false;
-			foreach (var entity in obj.entities) {
+			} //The process ends here if any of the textures need to have their settings altered
+			if (!success) return false; //The process will be reattempted after the next import cycle
+			foreach (var entity in obj.entities) { //Now begins the real prefab build process
 				var name = entity.name;
 				var prefabPath = string.Format ("{0}/{1}.prefab", directory, name);
 				var controllerPath = string.Format ("{0}/{1}.controller", directory, name);
 				var prefab = AssetDatabase.LoadAssetAtPath (prefabPath, typeof(GameObject));
 				GameObject instance;
-				if (prefab == null) {
+				if (prefab == null) { //Creates an empty prefab if one doesn't already exists
 					instance = new GameObject (name);
 					prefab = PrefabUtility.CreatePrefab (prefabPath, instance, ReplacePrefabOptions.ConnectToPrefab);
 				}
-				else instance = (GameObject)PrefabUtility.InstantiatePrefab (prefab);
-				var animator = instance.GetComponent<Animator> ();
-				if (animator == null) animator = instance.AddComponent<Animator> ();
+				else instance = (GameObject)PrefabUtility.InstantiatePrefab (prefab); //instantiates the prefab if it does exist
+				var animator = instance.GetComponent<Animator> (); //Fetches the prefab's Animator
+				if (animator == null) animator = instance.AddComponent<Animator> (); //Or creates one if it doesn't exist
 				AnimatorController controller = null;
-				if (animator.runtimeAnimatorController != null) {
-					controller = animator.runtimeAnimatorController as AnimatorController ??
+				if (animator.runtimeAnimatorController != null) { //The controller we use is hopefully the controller attached to the animator
+					controller = animator.runtimeAnimatorController as AnimatorController ?? //Or the one that's referenced by an OverrideController
 						(AnimatorController)((AnimatorOverrideController)animator.runtimeAnimatorController).runtimeAnimatorController;
 				}
-				if (controller == null) { 
+				if (controller == null) { //Otherwise we have to check the AssetDatabase for our controller
 					controller = (AnimatorController)AssetDatabase.LoadAssetAtPath (controllerPath, typeof(AnimatorController)) ??
-						AnimatorController.CreateAnimatorControllerAtPath (controllerPath);
+						AnimatorController.CreateAnimatorControllerAtPath (controllerPath); //Or create a new one if it doesn't exist.
 					animator.runtimeAnimatorController = controller;
 				}
-				var parents = new Dictionary<int, Transform> ();
-				var bones = new Dictionary<int, Transform> ();
-				parents [-1] = bones [-1] = instance.transform;
-				var sprites = new Dictionary<int, Transform> ();
-				var defaultBones = new Dictionary<int, SpatialInfo> ();
-				var defaultSprites = new Dictionary<int, SpriteInfo> ();
-				var animBuilder = new AnimationBuilder (folders, bones, sprites, defaultBones, defaultSprites, prefabPath, controller);
-				var firstAnim = true;
+				var transforms = new Dictionary<string, Transform> (); //All of the bones and sprites, identified by TimeLine.name, because those are truly unique
+				transforms ["rootTransform"] = instance.transform; //The root GameObject needs to be part of this hierarchy as well
+				var defaultBones = new Dictionary<string, SpatialInfo> (); //These are basically the object states on the first frame of the first animation
+				var defaultSprites = new Dictionary<string, SpriteInfo> (); //They are used as control values in determining whether something has changed
+				var animBuilder = new AnimationBuilder (folders, transforms, defaultBones, defaultSprites, prefabPath, controller);
+				var firstAnim = true; //The prefab's graphic will be determined by the first frame of the first animation
 				foreach (var animation in entity.animations) {
 					var timeLines = new Dictionary<int, TimeLine> ();
-					foreach (var timeLine in animation.timelines)
+					foreach (var timeLine in animation.timelines) //TimeLines hold all the critical data such as positioning and graphics used
 						timeLines [timeLine.id] = timeLine;
 					foreach (var key in animation.mainlineKeys) {
+						var parents = new Dictionary<int, string> (); //Parents are referenced by different IDs V_V
+						parents [-1] = "rootTransform"; //This is where "-1 == no parent" comes in handy
 						var boneRefs = new Queue<Ref> (key.boneRefs ?? new Ref[0]);
 						while (boneRefs.Count > 0) {
 							var bone = boneRefs.Dequeue ();
-							if (!bones.ContainsKey (bone.timeline)) {
-								if (parents.ContainsKey (bone.parent)) {
-									var parent = parents [bone.parent];
-									var timeLine = timeLines [bone.timeline];
-									var child = parent.Find (timeLine.name);
-									if (child == null) {
+							var timeLine = timeLines [bone.timeline];
+							parents [bone.id] = timeLine.name;
+							if (!transforms.ContainsKey (timeLine.name)) { //We only need to go through this once, so ignore it if it's already in the dict
+								if (parents.ContainsKey (bone.parent)) { //If the parent cannot be found, it will probably be found later, so save it
+									var parent = transforms [parents [bone.parent]];
+									var child = parent.Find (timeLine.name); //Try to find the child transform if it exists
+									if (child == null) { //Or create a new one
 										child = new GameObject (timeLine.name).transform;
 										child.SetParent (parent);
 									}
-									bones [bone.timeline] = parents [bone.id] = child;
-									var spatialInfo = defaultBones [bone.timeline] = ArrayUtility.Find (timeLine.keys, x => x.id == bone.key).info;
+									transforms [timeLine.name] = child;
+									var spatialInfo = defaultBones [timeLine.name] = ArrayUtility.Find (timeLine.keys, x => x.id == bone.key).info;
 									child.localPosition = new Vector3 (spatialInfo.x, spatialInfo.y, 0f);
 									child.localRotation = spatialInfo.rotation;
 									child.localScale = new Vector3 (spatialInfo.scale_x, spatialInfo.scale_y, 1f);
@@ -79,50 +87,50 @@ namespace Spriter2UnityDX.Prefabs {
 							}
 						}
 						foreach (var oref in key.objectRefs) {
-							if (!sprites.ContainsKey (oref.timeline)) {
-								var parent = parents [oref.parent];
-								var timeLine = timeLines [oref.timeline];
+							var timeLine = timeLines [oref.timeline];
+							if (!transforms.ContainsKey (timeLine.name)) { //Same as above
+								var parent = transforms [parents [oref.parent]];
 								var child = parent.Find (timeLine.name);
 								if (child == null) {
 									child = new GameObject (timeLine.name).transform;
 									child.SetParent (parent);
 								}
-								sprites [oref.timeline] = child;
-								var swapper = child.GetComponent<SpriteSwapper> ();
+								transforms [timeLine.name] = child;
+								var swapper = child.GetComponent<SpriteSwapper> (); //Destroy the Sprite Swapper, we'll make a new one later
 								if (swapper != null) DestroyImmediate (swapper);
-								var renderer = child.GetComponent<SpriteRenderer> (); 
+								var renderer = child.GetComponent<SpriteRenderer> (); //Get or create a Sprite Renderer
 								if (renderer == null) renderer = child.gameObject.AddComponent<SpriteRenderer> ();
-								var spriteInfo = defaultSprites [oref.timeline] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;
+								var spriteInfo = defaultSprites [timeLine.name] = (SpriteInfo)ArrayUtility.Find (timeLine.keys, x => x.id == 0).info;
 								renderer.sprite = folders [spriteInfo.folder] [spriteInfo.file];
-								child.localPosition = new Vector3 (spriteInfo.x, spriteInfo.y, oref.z_index * -0.001f);
-								child.localEulerAngles = new Vector3 (0f, 0f, spriteInfo.angle);
-								child.localScale = new Vector3 (spriteInfo.scale_x, spriteInfo.scale_y, 1f);
-								var color = renderer.color;
+								child.localPosition = new Vector3 (spriteInfo.x, spriteInfo.y, oref.z_index * -0.001f); //Z-index helps determine draw order
+								child.localEulerAngles = new Vector3 (0f, 0f, spriteInfo.angle);				//The reason I don't use layers or layer orders is because
+								child.localScale = new Vector3 (spriteInfo.scale_x, spriteInfo.scale_y, 1f);	//There tend to be a LOT of body parts, it's better to treat
+								var color = renderer.color;												//The entity as a single sprite for layer sorting purposes.
 								color.a = spriteInfo.a;
 								renderer.color = color;
-								if (!firstAnim) child.gameObject.SetActive (false);
+								if (!firstAnim) child.gameObject.SetActive (false); //Disable the GameObject if this isn't the first frame of the first animation
 							}
 						}
 						if (firstAnim) firstAnim = false;
 					}
-					animBuilder.Build (animation, timeLines);
+					animBuilder.Build (animation, timeLines); //Builds the currently processed AnimationClip, see AnimationBuilder for more info
 				}
 				PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
-				DestroyImmediate (instance);
+				DestroyImmediate (instance); //Apply the instance's changes to the prefab, then destroy the instance.
 			}
 			return success;
 		}
 
-		private IList<TextureImporter> InvalidImporters = new List<TextureImporter> ();
+		private IList<TextureImporter> InvalidImporters = new List<TextureImporter> (); //Importers in this list have already been processed and don't need to be processed again
 		private Sprite GetSpriteAtPath (string path, File file, ref bool success) {
 			var importer = TextureImporter.GetAtPath (path) as TextureImporter;
-			if (importer != null) {
+			if (importer != null) { //If no TextureImporter exists, there's no texture to be found
 				if ((importer.textureType != TextureImporterType.Sprite || importer.spritePivot.x != file.pivot_x 
 				     || importer.spritePivot.y != file.pivot_y) && !InvalidImporters.Contains (importer)) {
-					if (success) success = false;
-					var settings = new TextureImporterSettings ();
-					importer.ReadTextureSettings (settings);
-					settings.ApplyTextureType (TextureImporterType.Sprite, true);
+					if (success) success = false; //If the texture type isn't Sprite, or the pivot isn't set properly, 
+					var settings = new TextureImporterSettings (); //set the texture type and pivot
+					importer.ReadTextureSettings (settings);	//and make success false so the process can abort
+					settings.ApplyTextureType (TextureImporterType.Sprite, true); //after all the textures have been processed
 					settings.spriteAlignment = (int)SpriteAlignment.Custom;
 					settings.spritePivot = new Vector2 (file.pivot_x, file.pivot_y);
 					importer.SetTextureSettings (settings);
