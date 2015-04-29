@@ -123,7 +123,7 @@ namespace Spriter2UnityDX.Prefabs {
 					var settings = new TextureImporterSettings ();
 					importer.ReadTextureSettings (settings);
 					settings.ApplyTextureType (TextureImporterType.Sprite, true);
-					settings.spriteMode = (int)SpriteAlignment.Custom;
+					settings.spriteAlignment = (int)SpriteAlignment.Custom;
 					settings.spritePivot = new Vector2 (file.pivot_x, file.pivot_y);
 					importer.SetTextureSettings (settings);
 					importer.SaveAndReimport ();
