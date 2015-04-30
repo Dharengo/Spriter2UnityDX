@@ -8,11 +8,11 @@ namespace Spriter2UnityDX.Editors {
 	[CustomEditor (typeof(EntityRenderer)), CanEditMultipleObjects]
 	public class ERenderEdit : Editor {
 		private EntityRenderer renderer;
-		private string[] sortingLayerNames;
+		private string[] layerNames;
 
 		private void OnEnable () {
 			renderer = (EntityRenderer)target;
-			sortingLayerNames = GetSortingLayerNames ();
+			layerNames = GetSortingLayerNames ();
 		}
 
 		// Get the sorting layer names
@@ -28,11 +28,15 @@ namespace Spriter2UnityDX.Editors {
 			if (color != renderer.Color) {renderer.Color = color; changed = true;}
 			var material = (Material)EditorGUILayout.ObjectField ("Material", renderer.Material, typeof(Material), false);
 			if (material != renderer.Material) {renderer.Material = material; changed = true;}
-			var sortingLayer = EditorGUILayout.Popup ("Sorting Layer", renderer.SortingLayerID, sortingLayerNames, GUILayout.ExpandWidth (true));
-			if (sortingLayer != renderer.SortingLayerID) {renderer.SortingLayerID = sortingLayer; changed = true;}
+			var sortIndex = EditorGUILayout.Popup ("Sorting Layer", GetIndex (renderer.SortingLayerName), layerNames, GUILayout.ExpandWidth (true));
+			if (layerNames [sortIndex] != renderer.SortingLayerName) {renderer.SortingLayerName = layerNames[sortIndex]; changed = true;}
 			var sortingOrder = EditorGUILayout.IntField ("Order In Layer", renderer.SortingOrder);
 			if (sortingOrder != renderer.SortingOrder) {renderer.SortingOrder = sortingOrder; changed = true;}
 			if (changed) EditorUtility.SetDirty(renderer);
+		}
+
+		private int GetIndex (string layerName) {
+			return ArrayUtility.IndexOf (layerNames, layerName);
 		}
 	}
 }
