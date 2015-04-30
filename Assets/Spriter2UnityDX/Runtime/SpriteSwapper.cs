@@ -12,7 +12,7 @@ namespace Spriter2UnityDX {
 	//textures, such as facial expressions. This component will override any changes
 	//you make to the SpriteRenderer's textures, so if you want to change textures
 	//at runtime, please make these changes to this component, rather than SpriteRenderer
-	[RequireComponent (typeof(SpriteRenderer)), DisallowMultipleComponent]
+	[RequireComponent (typeof(SpriteRenderer)), DisallowMultipleComponent, ExecuteInEditMode]
 	public class SpriteSwapper : MonoBehaviour {
 		public float DisplayedSprite = 0f; //Input from the AnimationClip
 		public Sprite[] Sprites; //If you want to swap textures at runtime, change the sprites in this array
@@ -24,8 +24,11 @@ namespace Spriter2UnityDX {
 		private void Awake () {
 			srenderer = GetComponent<SpriteRenderer> ();
 			lastDisplayed = (int)DisplayedSprite;
-			srenderer.sprite = Sprites [lastDisplayed];
 			animator = GetComponentInParent<Animator> ();
+		}
+
+		private void Start () {
+			srenderer.sprite = Sprites [lastDisplayed];
 		}
 
 		private void Update () {

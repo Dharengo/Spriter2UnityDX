@@ -115,6 +115,7 @@ namespace Spriter2UnityDX.Prefabs {
 					}
 					animBuilder.Build (animation, timeLines); //Builds the currently processed AnimationClip, see AnimationBuilder for more info
 				}
+				if (instance.GetComponent<EntityRenderer> () == null) instance.AddComponent<EntityRenderer> (); //Adds an EntityRenderer if one is not already present
 				PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
 				DestroyImmediate (instance); //Apply the instance's changes to the prefab, then destroy the instance.
 			}

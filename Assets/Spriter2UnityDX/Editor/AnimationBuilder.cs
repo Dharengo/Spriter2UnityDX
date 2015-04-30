@@ -198,10 +198,10 @@ namespace Spriter2UnityDX.Animations {
 				    rv [ChangedValues.RotationZ] = new AnimationCurve ();
 				if (!rv.ContainsKey (ChangedValues.RotationW) && defaultInfo.rotation.w != info.rotation.w)
 					rv [ChangedValues.RotationW] = new AnimationCurve ();
-				if (!rv.ContainsKey (ChangedValues.ScaleX) && defaultInfo.scale_x != info.scale_x)
-				    rv [ChangedValues.ScaleX] = new AnimationCurve ();
-				if (!rv.ContainsKey (ChangedValues.ScaleY) && defaultInfo.scale_y != info.scale_y)
-				    rv [ChangedValues.ScaleY] = new AnimationCurve ();
+				if (!rv.ContainsKey (ChangedValues.ScaleX) && (defaultInfo.scale_x != info.scale_x || defaultInfo.scale_y != info.scale_y)) {
+					rv [ChangedValues.ScaleX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for both scale.x 
+					rv [ChangedValues.ScaleY] = new AnimationCurve (); //and scale.y, so when one is set, the other has to be set as well
+				}
 				if (!rv.ContainsKey (ChangedValues.Alpha) && defaultInfo.a != info.a)
 					rv [ChangedValues.Alpha] = new AnimationCurve ();
 				var scontrol = defaultInfo as SpriteInfo;
