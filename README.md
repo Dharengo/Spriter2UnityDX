@@ -1,6 +1,8 @@
 # Spriter2UnityDX
 Converts Spriter .scml files to Unity prefabs
 
+Version 1.0
+
 Download the Unity Package here: https://github.com/Dharengo/Spriter2UnityDX/raw/master/Packages/Spriter2UnityDX.unitypackage
 
 !!!Requires Unity 5.x!!!
