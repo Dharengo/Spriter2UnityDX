@@ -1,7 +1,7 @@
 # Spriter2UnityDX
 Converts Spriter .scml files to Unity prefabs
 
-Version 1.0
+Version 1.0.1
 
 Download the Unity Package here: https://github.com/Dharengo/Spriter2UnityDX/raw/master/Packages/Spriter2UnityDX.unitypackage
 
@@ -18,3 +18,10 @@ Use Instructions:
 4) When you make any changes to the .scml file, the converter will attempt to update existing assets if they exist
 
 5) If the update causes irregular behaviour, try deleting the original assets and then reimporting the .scml file
+
+Changelog:
+
+v1.0.1:
+Fixes: -Fixed an issue where the sprite's Z orders would get messed up if the sprite is moved during animation
+New Features: -Z order can now be mutated during animation
+v1.0: Initial versoin
