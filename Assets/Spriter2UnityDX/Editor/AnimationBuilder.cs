@@ -158,13 +158,12 @@ namespace Spriter2UnityDX.Animations {
 			var childPath = GetPathToChild (child);
 			foreach (var key in keys) { //If it is present, enable the GameObject if it isn't already enabled
 				var mref = ArrayUtility.Find (key.objectRefs, x => x.timeline == timeLine.id);
-				if (defaultZ == inf) {
-					defaultZ = mref.z_index;
-					positionChanged = true;
-				}
 				if (mref != null) {
+					if (defaultZ == inf) {
+						defaultZ = mref.z_index;
+						positionChanged = true;
+					}
 					if (!changedZ && mref.z_index != defaultZ) {
-						Debug.LogFormat ("{0}, {1}, {2}", timeLine.name, defaultZ, mref.z_index);
 						changedZ = true;
 						if (key.time > 0) kfsZ.Add (new Keyframe (0f, defaultZ, inf, inf));
 					}
