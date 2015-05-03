@@ -10,17 +10,14 @@ Download the Unity Package here: https://github.com/Dharengo/Spriter2UnityDX/raw
 Use Instructions:
 
 1) Import the package into your Unity project (just drag and drop it into your Project view).<br>
-2) Import your entire Spriter project folder (including all the textures) into your Unity project.
-
-3) The converter should automatically create a prefab (with nested animations) and an AnimatorController
-
-4) When you make any changes to the .scml file, the converter will attempt to update existing assets if they exist
-
+2) Import your entire Spriter project folder (including all the textures) into your Unity project<br>
+3) The converter should automatically create a prefab (with nested animations) and an AnimatorController<br>
+4) When you make any changes to the .scml file, the converter will attempt to update existing assets if they exist<br>
 5) If the update causes irregular behaviour, try deleting the original assets and then reimporting the .scml file
 
 Changelog:
 
 v1.0.1:
-Fixes: -Fixed an issue where the sprite's Z orders would get messed up if the sprite is moved during animation
-New Features: -Z order can now be mutated during animation
+Fixes: -Fixed an issue where the sprite's Z orders would get messed up if the sprite is moved during animation<br>
+New Features: -Z order can now be mutated during animation<br>
 v1.0: Initial version
