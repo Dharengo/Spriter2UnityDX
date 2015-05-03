@@ -56,8 +56,9 @@ namespace Spriter2UnityDX.Animations {
 					var timeLine = timeLines [sref.timeline];
 					if (pendingTransforms.ContainsKey (timeLine.name)) {
 						var sprite = Transforms [timeLine.name];
-						SetCurves (sprite, DefaultSprites [timeLine.name], timeLine, clip, animation);
-						SetActiveCurve (sprite, animation.mainlineKeys, sref, clip);
+						var defaultZ = ArrayUtility.Find (key.objectRefs, x => x.timeline == timeLine.id).z_index;
+						SetCurves (sprite, DefaultSprites [timeLine.name], timeLine, clip, animation, ref defaultZ);
+						SetAdditionalCurves (sprite, animation.mainlineKeys, timeLine, clip, defaultZ);
 						pendingTransforms.Remove (timeLine.name);
 					}
 				}
@@ -87,6 +88,11 @@ namespace Spriter2UnityDX.Animations {
 		}
 
 		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation) {
+			var defZ = 0f;
+			SetCurves (child, defaultInfo, timeLine, clip, animation, ref defZ);
+		}
+
+		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation, ref float defaultZ) {
 			var childPath = GetPathToChild (child);
 			foreach (var kvPair in GetCurves (timeLine, defaultInfo)) { //Makes sure that curves are only added for properties 
 				switch (kvPair.Key) {									//that actually mutate in the animation
@@ -97,6 +103,11 @@ namespace Spriter2UnityDX.Animations {
 				case ChangedValues.PositionY :
 					SetKeys (kvPair.Value, timeLine, x => x.y, animation);
 					clip.SetCurve (childPath, typeof(Transform), "localPosition.y", kvPair.Value);
+					break;
+				case ChangedValues.PositionZ :
+					kvPair.Value.AddKey (0f, defaultZ);
+					clip.SetCurve (childPath, typeof(Transform), "localPosition.z", kvPair.Value);
+					defaultZ = inf; //Lets the next method know this value has changed
 					break;
 				case ChangedValues.RotationZ :
 					SetKeys (kvPair.Value, timeLine, x => x.rotation.z, animation);
@@ -113,6 +124,10 @@ namespace Spriter2UnityDX.Animations {
 				case ChangedValues.ScaleY :
 					SetKeys (kvPair.Value, timeLine, x => x.scale_y, animation);
 					clip.SetCurve (childPath, typeof(Transform), "localScale.y", kvPair.Value);
+					break;
+				case ChangedValues.ScaleZ :
+					kvPair.Value.AddKey (0f, 1f);
+					clip.SetCurve (childPath, typeof(Transform), "localScale.z", kvPair.Value);
 					break;
 				case ChangedValues.Alpha :
 					SetKeys (kvPair.Value, timeLine, x => x.a, animation);
@@ -133,23 +148,49 @@ namespace Spriter2UnityDX.Animations {
 			clip.EnsureQuaternionContinuity ();
 		}
 
-		private void SetActiveCurve (Transform child, MainLineKey[] keys, Ref sref, AnimationClip clip) {
+		//This is for curves that are tracked slightly differently from regular curves: Active curve and Z-index curve
+		private void SetAdditionalCurves (Transform child, MainLineKey[] keys, TimeLine timeLine, AnimationClip clip, float defaultZ) {
+			var positionChanged = false;
+			var kfsZ = new List<Keyframe> ();
+			var changedZ = false;
 			var active = child.gameObject.activeSelf; //If the sprite or bone isn't present in the mainline,
-			var kfs = new List<Keyframe> (); //Disable the GameObject if it isn't already disabled
+			var kfsActive = new List<Keyframe> (); //Disable the GameObject if it isn't already disabled
+			var childPath = GetPathToChild (child);
 			foreach (var key in keys) { //If it is present, enable the GameObject if it isn't already enabled
-				var exists = ArrayUtility.Find (key.objectRefs, x => x.timeline == sref.timeline) != null;
-				if (exists && !active) {
-					if (kfs.Count <= 0 && key.time > 0) kfs.Add (new Keyframe (0f, 0f, inf, inf));
-					kfs.Add (new Keyframe (key.time, 1f, inf, inf));
-					active = true;
+				var mref = ArrayUtility.Find (key.objectRefs, x => x.timeline == timeLine.id);
+				if (defaultZ == inf) {
+					defaultZ = mref.z_index;
+					positionChanged = true;
 				}
-				else if (!exists && active) {
-					if (kfs.Count <= 0 && key.time > 0) kfs.Add (new Keyframe (0f, 1f, inf, inf));
-					kfs.Add (new Keyframe (key.time, 0f, inf, inf));
+				if (mref != null) {
+					if (!changedZ && mref.z_index != defaultZ) {
+						Debug.LogFormat ("{0}, {1}, {2}", timeLine.name, defaultZ, mref.z_index);
+						changedZ = true;
+						if (key.time > 0) kfsZ.Add (new Keyframe (0f, defaultZ, inf, inf));
+					}
+					if (changedZ) 
+						kfsZ.Add (new Keyframe (key.time, mref.z_index, inf, inf));
+					if (!active) {
+						if (kfsActive.Count <= 0 && key.time > 0) kfsActive.Add (new Keyframe (0f, 0f, inf, inf));
+						kfsActive.Add (new Keyframe (key.time, 1f, inf, inf));
+						active = true;
+					}
+				}
+				else if (active) {
+					if (kfsActive.Count <= 0 && key.time > 0) kfsActive.Add (new Keyframe (0f, 1f, inf, inf));
+					kfsActive.Add (new Keyframe (key.time, 0f, inf, inf));
 					active = false;
 				}
-			} //Only add this curve if there is actually a mutation
-			if (kfs.Count > 0) clip.SetCurve (GetPathToChild (child), typeof(GameObject), "m_IsActive", new AnimationCurve (kfs.ToArray ()));
+			} //Only add these curves if there is actually a mutation
+			if (kfsZ.Count > 0) {
+				clip.SetCurve (childPath, typeof(Transform), "localPosition.z", new AnimationCurve (kfsZ.ToArray ()));
+				if (!positionChanged) {
+					var info = timeLine.keys [0].info;
+					clip.SetCurve (childPath, typeof(Transform), "localPosition.x", new AnimationCurve (new Keyframe (0f, info.x)));
+					clip.SetCurve (childPath, typeof(Transform), "localPosition.y", new AnimationCurve (new Keyframe (0f, info.y)));
+				}
+			}
+			if (kfsActive.Count > 0) clip.SetCurve (childPath, typeof(GameObject), "m_IsActive", new AnimationCurve (kfsActive.ToArray ()));
 		}
 
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, Func<SpatialInfo, float> infoValue, Animation animation) {
@@ -185,22 +226,24 @@ namespace Spriter2UnityDX.Animations {
 			else return ChildPaths [child] = AnimationUtility.CalculateTransformPath (child, Root);
 		}
 
-		private enum ChangedValues { None, Sprite, PositionX, PositionY, RotationZ, RotationW, ScaleX, ScaleY, Alpha }
+		private enum ChangedValues { None, Sprite, PositionX, PositionY, PositionZ, RotationZ, RotationW, ScaleX, ScaleY, ScaleZ, Alpha }
 		private IDictionary<ChangedValues, AnimationCurve> GetCurves (TimeLine timeLine, SpatialInfo defaultInfo) {
 			var rv = new Dictionary<ChangedValues, AnimationCurve> (); //This method checks every animatable property for changes
 			for (var i = 0; i < timeLine.keys.Length; i++) {		//And creates a curve for that property if changes are detected
 				var info = timeLine.keys [i].info;
-				if (!rv.ContainsKey (ChangedValues.PositionX) && defaultInfo.x != info.x) 
-					rv [ChangedValues.PositionX] = new AnimationCurve ();
-				if (!rv.ContainsKey (ChangedValues.PositionY) && defaultInfo.y != info.y) 
-				    rv [ChangedValues.PositionY] = new AnimationCurve ();
-				if (!rv.ContainsKey (ChangedValues.RotationZ) && defaultInfo.rotation.z != info.rotation.z)
-				    rv [ChangedValues.RotationZ] = new AnimationCurve ();
-				if (!rv.ContainsKey (ChangedValues.RotationW) && defaultInfo.rotation.w != info.rotation.w)
+				if (!rv.ContainsKey (ChangedValues.PositionX) && (defaultInfo.x != info.x || defaultInfo.y != info.y)) {
+					rv [ChangedValues.PositionX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for all members  
+					rv [ChangedValues.PositionY] = new AnimationCurve (); //in a group, so when one is set, the others have to be set as well
+					rv [ChangedValues.PositionZ] = new AnimationCurve ();
+				}
+				if (!rv.ContainsKey (ChangedValues.RotationZ) && (defaultInfo.rotation.z != info.rotation.z || defaultInfo.rotation.w != info.rotation.w)) {
+				    rv [ChangedValues.RotationZ] = new AnimationCurve ();//x and y not necessary since the default of 0 is fine
 					rv [ChangedValues.RotationW] = new AnimationCurve ();
+				}
 				if (!rv.ContainsKey (ChangedValues.ScaleX) && (defaultInfo.scale_x != info.scale_x || defaultInfo.scale_y != info.scale_y)) {
-					rv [ChangedValues.ScaleX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for both scale.x 
-					rv [ChangedValues.ScaleY] = new AnimationCurve (); //and scale.y, so when one is set, the other has to be set as well
+					rv [ChangedValues.ScaleX] = new AnimationCurve ();
+					rv [ChangedValues.ScaleY] = new AnimationCurve ();
+					rv [ChangedValues.ScaleZ] = new AnimationCurve ();
 				}
 				if (!rv.ContainsKey (ChangedValues.Alpha) && defaultInfo.a != info.a)
 					rv [ChangedValues.Alpha] = new AnimationCurve ();

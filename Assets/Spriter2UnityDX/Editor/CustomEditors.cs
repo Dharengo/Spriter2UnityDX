@@ -36,7 +36,9 @@ namespace Spriter2UnityDX.Editors {
 		}
 
 		private int GetIndex (string layerName) {
-			return ArrayUtility.IndexOf (layerNames, layerName);
+			var index = ArrayUtility.IndexOf (layerNames, layerName);
+			if (index < 0) index = 0;
+			return index;
 		}
 	}
 }

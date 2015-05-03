@@ -83,7 +83,11 @@ namespace Spriter2UnityDX.Importing {
 		[XmlAttribute] public int parent { get; set; } // -1==no parent - uses ScmlObject spatialInfo as parentInfo
 		[XmlAttribute] public int timeline { get; set; } //Dengar.NOTE: Again, the above comment is an artifact from the pseudocode
 		[XmlAttribute] public int key { get; set; }		//However, the fact that -1 equals "no parent" does come in useful later
-		[XmlAttribute] public int z_index { get; set; }
+		private float z;
+		[XmlAttribute] public float z_index { //Translate Sprite's Z-index in something we can use in Unity
+			get { return z; } 				//I choose to use position_z instead of order in layer because there are just potentially way too many
+			set { z = value * -0.001f; } 	//body parts to work with. This way the order in layer is reserved for entire Spriter entities
+		}
 	}
 	
 	public enum ObjectType {sprite, bone, box, point, sound, entity, variable}
