@@ -24,4 +24,4 @@ Changelog:
 v1.0.1:
 Fixes: -Fixed an issue where the sprite's Z orders would get messed up if the sprite is moved during animation
 New Features: -Z order can now be mutated during animation
-v1.0: Initial versoin
+v1.0: Initial version
