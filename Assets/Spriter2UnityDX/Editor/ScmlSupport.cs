@@ -91,13 +91,13 @@ namespace Spriter2UnityDX.Importing {
 	}
 	
 	public enum ObjectType {sprite, bone, box, point, sound, entity, variable}
-	
 	public class TimeLine : ScmlElement {
 		[XmlAttribute] public string name { get; set; }
 		[XmlAttribute] public ObjectType objectType { get; set; } // enum : SPRITE,BONE,BOX,POINT,SOUND,ENTITY,VARIABLE //Dengar.NOTE (except not in all caps)
 		[XmlElement ("key")] public TimeLineKey[] keys { get; set; } // <key> tags within <timeline> tags   
 	}
-	
+
+	public enum CurveType {instant, linear, quadratic, cubic}
 	public class TimeLineKey : ScmlElement {
 		public TimeLineKey () {time=0; spin=1;}
 		private float _time;
@@ -105,8 +105,8 @@ namespace Spriter2UnityDX.Importing {
 			get { return _time; }
 			set { _time = value * 0.001f; } //See MainLineKey
 		}
-		[XmlAttribute] public int curve_type { get; set; } // enum : INSTANT,LINEAR,QUADRATIC,CUBIC
-		[XmlAttribute] public float c1 { get; set; } //The above actually isn't an enum but an int
+		[XmlAttribute] public CurveType curve_type { get; set; } // enum : INSTANT,LINEAR,QUADRATIC,CUBIC //Dengar.NOTE (again, no caps)
+		[XmlAttribute] public float c1 { get; set; } 
 		[XmlAttribute] public float c2 { get; set; } //I think these should be implemented some time in the future
 		[XmlAttribute] public int spin { get; set; }
 		[XmlElement ("bone", typeof(SpatialInfo)), XmlElement ("object", typeof(SpriteInfo))]
@@ -114,7 +114,7 @@ namespace Spriter2UnityDX.Importing {
 	}
 	
 	public class SpatialInfo {
-		public SpatialInfo () {x=0; y=0; angle=0; scale_x=1; scale_y=1; a=1;}
+		public SpatialInfo () {x=0; y=0; angle=0; scale_x=1; scale_y=1; trueScaleX=float.NaN; trueScaleY=float.NaN; a=1;}
 		private float _x;
 		[XmlAttribute] public float x { 
 			get { return _x; }
@@ -131,9 +131,54 @@ namespace Spriter2UnityDX.Importing {
 			set { rotation = Quaternion.Euler (0, 0, value); }
 		}
 		private float sx;
-		[XmlAttribute] public float scale_x { get; set; } 
-		[XmlAttribute] public float scale_y { get; set; } 
+		[XmlAttribute] public float scale_x { 
+			get { return sx; }
+			set {
+				sx = value;
+				if (float.IsNaN(trueScaleX)) trueScaleX = value;
+			}
+		} 
+		private float trueScaleX;
+		private float sy;
+		[XmlAttribute] public float scale_y { 
+			get { return sy; }
+			set {
+				sy = value;
+				if (float.IsNaN(trueScaleY)) trueScaleY = value;
+			}
+		} 
+		private float trueScaleY;
 		[XmlAttribute] public float a { get; set; } //Alpha
+		public bool processed = false;
+		//Some very funky maths to make sure all the scale values are off the bones and on the sprite instead
+		public bool Process (SpatialInfo parent) { 
+			if (GetType () == typeof(SpatialInfo)) {
+				scale_x = 1;
+				scale_y = 1;
+				if (parent != null) {
+					if (!float.IsNaN (parent.trueScaleX)) {
+						_x *= parent.trueScaleX;
+						trueScaleX *= parent.trueScaleX;
+					}
+					if (!float.IsNaN (parent.trueScaleY)) {
+						_y *= parent.trueScaleY;
+						trueScaleY *= parent.trueScaleY;
+					}
+				}
+				return processed = true;
+			}
+			if (parent != null) {
+				if (!float.IsNaN (parent.trueScaleX)) {
+					_x *= parent.trueScaleX;
+					scale_x *= parent.trueScaleX;
+				}
+				if (!float.IsNaN (parent.trueScaleY)) {
+					_y *= parent.trueScaleY;
+					scale_y *= parent.trueScaleY;
+				}
+			}
+			return processed = true;
+		}
 	}
 	
 	public class SpriteInfo : SpatialInfo {

@@ -16,6 +16,7 @@ namespace Spriter2UnityDX.Animations {
 	public class AnimationBuilder : UnityEngine.Object {
 		//Only one of these is made for each Entity, and these globals are the same for every
 		//Animation that belongs to these entities
+		private ScmlProcessingInfo ProcessingInfo;
 		private const float inf = float.PositiveInfinity;
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
 		private IDictionary<string, Transform> Transforms;
@@ -25,12 +26,13 @@ namespace Spriter2UnityDX.Animations {
 		private IDictionary<string, SpatialInfo> DefaultBones;
 		private IDictionary<string, SpriteInfo> DefaultSprites;
 		private AnimatorController Controller;
+		private bool ModdedController = false;
 
-		public AnimationBuilder (IDictionary<int, IDictionary<int, Sprite>> folders,
+		public AnimationBuilder (ScmlProcessingInfo info, IDictionary<int, IDictionary<int, Sprite>> folders,
 		                         IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
 		                         IDictionary<string, SpriteInfo> defaultSprites,
 		                         string prefabPath, AnimatorController controller) {
-			Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
+			ProcessingInfo = info; Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
 			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
 			Root = Transforms ["rootTransform"]; Controller = controller;
 
@@ -45,19 +47,31 @@ namespace Spriter2UnityDX.Animations {
 			clip.name = animation.name;
 			var pendingTransforms = new Dictionary<string, Transform> (Transforms); //This Dictionary will shrink in size for every transform
 			foreach (var key in animation.mainlineKeys) { 						//that is considered "used"
-				foreach (var bref in key.boneRefs ?? new Ref[0]) {
-					var timeLine = timeLines [bref.timeline];
-					if (pendingTransforms.ContainsKey (timeLine.name)) { //Skip it if it's already "used"
-						SetCurves (Transforms [timeLine.name], DefaultBones [timeLine.name], timeLine, clip, animation);
-						pendingTransforms.Remove (timeLine.name);
+				var parentTimelines = new Dictionary<int, List<TimeLineKey>> ();
+				var brefs = new Queue<Ref> (key.boneRefs ?? new Ref [0]);
+				while (brefs.Count > 0) {
+					var bref = brefs.Dequeue ();
+					if (bref.parent < 0 || parentTimelines.ContainsKey (bref.parent)) {
+						var timeLine = timeLines [bref.timeline];
+						parentTimelines [bref.id] = new List<TimeLineKey> (timeLine.keys);
+						Transform bone;
+						if (pendingTransforms.TryGetValue (timeLine.name, out bone)) { //Skip it if it's already "used"
+							List<TimeLineKey> parentTimeline;
+							parentTimelines.TryGetValue (bref.parent, out parentTimeline);
+							SetCurves (bone, DefaultBones [timeLine.name], parentTimeline, timeLine, clip, animation);
+							pendingTransforms.Remove (timeLine.name);
+						}
 					}
+					else brefs.Enqueue (bref);
 				}
 				foreach (var sref in key.objectRefs) {
 					var timeLine = timeLines [sref.timeline];
-					if (pendingTransforms.ContainsKey (timeLine.name)) {
-						var sprite = Transforms [timeLine.name];
-						var defaultZ = ArrayUtility.Find (key.objectRefs, x => x.timeline == timeLine.id).z_index;
-						SetCurves (sprite, DefaultSprites [timeLine.name], timeLine, clip, animation, ref defaultZ);
+					Transform sprite;
+					if (pendingTransforms.TryGetValue (timeLine.name, out sprite)) {
+						var defaultZ = sref.z_index;
+						List<TimeLineKey> parentTimeline;
+						parentTimelines.TryGetValue (sref.parent, out parentTimeline);
+						SetCurves (sprite, DefaultSprites [timeLine.name], parentTimeline, timeLine, clip, animation, ref defaultZ);
 						SetAdditionalCurves (sprite, animation.mainlineKeys, timeLine, clip, defaultZ);
 						pendingTransforms.Remove (timeLine.name);
 					}
@@ -81,20 +95,31 @@ namespace Spriter2UnityDX.Animations {
 				var oldClip = OriginalClips [animation.name];
 				EditorUtility.CopySerialized (clip, oldClip);
 				clip = oldClip;
+				ProcessingInfo.ModifiedAnims.Add (clip);
+			} else {
+				AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
+				ProcessingInfo.NewAnims.Add (clip);
 			}
-			else AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
-			if (ArrayUtility.Find (Controller.animationClips, x => x.name == clip.name) == null)
-				Controller.AddMotion (clip); //Add this clip to the AnimatorController unless it's already there
+			if (!ArrayUtility.Contains (Controller.animationClips, clip)) { //Don't add the clip if it's already there
+				var state = GetStateFromController (clip.name); //Find a state of the same name
+				if (state != null) state.motion = clip; //If it exists, replace it
+				else Controller.AddMotion (clip); //Otherwise add it as a new state
+				if (!ModdedController) {
+					if (!ProcessingInfo.NewControllers.Contains (Controller) && !ProcessingInfo.ModifiedControllers.Contains (Controller))
+						ProcessingInfo.ModifiedControllers.Add (Controller);
+					ModdedController = true;
+				}
+			}
 		}
 
-		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation) {
+		private void SetCurves (Transform child, SpatialInfo defaultInfo, List<TimeLineKey> parentTimeline, TimeLine timeLine, AnimationClip clip, Animation animation) {
 			var defZ = 0f;
-			SetCurves (child, defaultInfo, timeLine, clip, animation, ref defZ);
+			SetCurves (child, defaultInfo, parentTimeline, timeLine, clip, animation, ref defZ);
 		}
 
-		private void SetCurves (Transform child, SpatialInfo defaultInfo, TimeLine timeLine, AnimationClip clip, Animation animation, ref float defaultZ) {
+		private void SetCurves (Transform child, SpatialInfo defaultInfo, List<TimeLineKey> parentTimeline, TimeLine timeLine, AnimationClip clip, Animation animation, ref float defaultZ) {
 			var childPath = GetPathToChild (child);
-			foreach (var kvPair in GetCurves (timeLine, defaultInfo)) { //Makes sure that curves are only added for properties 
+			foreach (var kvPair in GetCurves (timeLine, defaultInfo, parentTimeline)) { //Makes sure that curves are only added for properties 
 				switch (kvPair.Key) {									//that actually mutate in the animation
 				case ChangedValues.PositionX :
 					SetKeys (kvPair.Value, timeLine, x => x.x, animation);
@@ -107,7 +132,7 @@ namespace Spriter2UnityDX.Animations {
 				case ChangedValues.PositionZ :
 					kvPair.Value.AddKey (0f, defaultZ);
 					clip.SetCurve (childPath, typeof(Transform), "localPosition.z", kvPair.Value);
-					defaultZ = inf; //Lets the next method know this value has changed
+					defaultZ = inf; //Lets the next method know this value has been set
 					break;
 				case ChangedValues.RotationZ :
 					SetKeys (kvPair.Value, timeLine, x => x.rotation.z, animation);
@@ -184,7 +209,7 @@ namespace Spriter2UnityDX.Animations {
 			if (kfsZ.Count > 0) {
 				clip.SetCurve (childPath, typeof(Transform), "localPosition.z", new AnimationCurve (kfsZ.ToArray ()));
 				if (!positionChanged) {
-					var info = timeLine.keys [0].info;
+					var info = timeLine.keys [0].info; //If these curves don't actually exist, add some empty ones
 					clip.SetCurve (childPath, typeof(Transform), "localPosition.x", new AnimationCurve (new Keyframe (0f, info.x)));
 					clip.SetCurve (childPath, typeof(Transform), "localPosition.y", new AnimationCurve (new Keyframe (0f, info.y)));
 				}
@@ -218,18 +243,56 @@ namespace Spriter2UnityDX.Animations {
 			}
 			return index;
 		}
+
+		private AnimatorState GetStateFromController (string clipName) {
+			foreach (var layer in Controller.layers) {
+				var state = GetStateFromMachine (layer.stateMachine, clipName);
+				if (state != null) return state;
+			}
+			return null;
+		}
+
+		private AnimatorState GetStateFromMachine (AnimatorStateMachine machine, string clipName) {
+			foreach (var state in machine.states) {
+				if (state.state.name == clipName) return state.state;
+			}
+			foreach (var cmachine in machine.stateMachines) {
+				var state = GetStateFromMachine (cmachine.stateMachine, clipName);
+				if (state!= null) return state;
+			}
+			return null;
+		}
 								
 		private IDictionary<Transform, string> ChildPaths = new Dictionary<Transform, string> ();
 		private string GetPathToChild (Transform child) { //Caches the relative paths to children so they only have to be calculated once
-			if (ChildPaths.ContainsKey (child)) return ChildPaths [child]; 
+			string path;
+			if (ChildPaths.TryGetValue (child, out path)) return path; 
 			else return ChildPaths [child] = AnimationUtility.CalculateTransformPath (child, Root);
 		}
 
 		private enum ChangedValues { None, Sprite, PositionX, PositionY, PositionZ, RotationZ, RotationW, ScaleX, ScaleY, ScaleZ, Alpha }
-		private IDictionary<ChangedValues, AnimationCurve> GetCurves (TimeLine timeLine, SpatialInfo defaultInfo) {
+		private IDictionary<ChangedValues, AnimationCurve> GetCurves (TimeLine timeLine, SpatialInfo defaultInfo, List<TimeLineKey> parentTimeline) {
 			var rv = new Dictionary<ChangedValues, AnimationCurve> (); //This method checks every animatable property for changes
-			for (var i = 0; i < timeLine.keys.Length; i++) {		//And creates a curve for that property if changes are detected
-				var info = timeLine.keys [i].info;
+			foreach (var key in timeLine.keys) {		//And creates a curve for that property if changes are detected
+				var info = key.info;
+				if (!info.processed) {
+					SpatialInfo parentInfo = null;
+					if (parentTimeline != null) {
+						var pKey = parentTimeline.Find (x => x.time == key.time);
+						if (pKey == null) {
+							var pKeys = parentTimeline.FindAll (x => x.time < key.time);
+							pKeys.Sort ((x, y) => x.time.CompareTo (y.time) * -1);
+							if (pKeys.Count > 0) pKey = pKeys [0];
+							else {
+								pKeys = parentTimeline.FindAll (x => x.time > key.time);
+								pKeys.Sort ((x, y) => x.time.CompareTo (y.time));
+								if (pKeys.Count > 0) pKey = pKeys [0];
+							}
+						}
+						if (pKey != null) parentInfo = pKey.info;
+					}
+					info.Process (parentInfo);
+				}
 				if (!rv.ContainsKey (ChangedValues.PositionX) && (defaultInfo.x != info.x || defaultInfo.y != info.y)) {
 					rv [ChangedValues.PositionX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for all members  
 					rv [ChangedValues.PositionY] = new AnimationCurve (); //in a group, so when one is set, the others have to be set as well

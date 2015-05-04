@@ -1,7 +1,7 @@
 # Spriter2UnityDX
 Converts Spriter .scml files to Unity prefabs
 
-Version 1.0.1
+Version 1.0.2
 
 Download the Unity Package here: https://github.com/Dharengo/Spriter2UnityDX/raw/master/Packages/Spriter2UnityDX.unitypackage
 
@@ -17,7 +17,14 @@ Use Instructions:
 
 Changelog:
 
-v1.0.1:
+v1.0.2:<br>
+Fixes:<br>
+-Fixed an issue where sprites appeared distorted when resizing bones.<br>
+-Exceptions are wrapped up nicely and no longer abort the whole process<br>
+Features:<br>
+-Now adds AnimationClips to existing AnimatorStates if they exist<br>
+-Autosaves no longer trigger the importer<br>
+v1.0.1:<br>
 Fixes: -Fixed an issue where the sprite's Z orders would get messed up if the sprite is moved during animation<br>
-New Features: -Z order can now be mutated during animation<br>
+Features: -Z order can now be mutated during animation<br>
 v1.0: Initial version
