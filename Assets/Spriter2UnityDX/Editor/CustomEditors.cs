@@ -32,6 +32,8 @@ namespace Spriter2UnityDX.Editors {
 			if (layerNames [sortIndex] != renderer.SortingLayerName) {renderer.SortingLayerName = layerNames[sortIndex]; changed = true;}
 			var sortingOrder = EditorGUILayout.IntField ("Order In Layer", renderer.SortingOrder);
 			if (sortingOrder != renderer.SortingOrder) {renderer.SortingOrder = sortingOrder; changed = true;}
+			var applyZ = EditorGUILayout.Toggle ("Apply Spriter Z Order", renderer.ApplySpriterZOrder);
+			if (applyZ != renderer.ApplySpriterZOrder) {renderer.ApplySpriterZOrder = applyZ; changed = true;}
 			if (changed) EditorUtility.SetDirty(renderer);
 		}
 

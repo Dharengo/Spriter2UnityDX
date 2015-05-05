@@ -153,8 +153,10 @@ namespace Spriter2UnityDX.Importing {
 		//Some very funky maths to make sure all the scale values are off the bones and on the sprite instead
 		public bool Process (SpatialInfo parent) { 
 			if (GetType () == typeof(SpatialInfo)) {
-				scale_x = 1;
-				scale_y = 1;
+				scale_x = (scale_x > 0) ? 1 : -1;
+				scale_y = (scale_y > 0) ? 1 : -1;
+				trueScaleX = Mathf.Abs (trueScaleX);
+				trueScaleY = Mathf.Abs (trueScaleY);
 				if (parent != null) {
 					if (!float.IsNaN (parent.trueScaleX)) {
 						_x *= parent.trueScaleX;

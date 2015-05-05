@@ -1,7 +1,7 @@
 # Spriter2UnityDX
 Converts Spriter .scml files to Unity prefabs
 
-Version 1.0.2
+Version 1.0.3
 
 Download the Unity Package here: https://github.com/Dharengo/Spriter2UnityDX/raw/master/Packages/Spriter2UnityDX.unitypackage
 
@@ -17,6 +17,12 @@ Use Instructions:
 
 Changelog:
 
+v1.0.3:<br>
+Fixes:<br>
+-Fixed an issue where flipped (negative-scaled) bones caused child sprites to appear out of place and in odd angles<br>
+Features:<br>
+-Added a toggle to the Entity Renderer that allows you to apply the .scml file's Z-index to the order-in-layer property of the Sprite Renderers<br>
+-Removed Spriter2UnityDX components from the Add Component menu, since they are automatically added or removed through script<br>
 v1.0.2:<br>
 Fixes:<br>
 -Fixed an issue where sprites appeared distorted when resizing bones.<br>
