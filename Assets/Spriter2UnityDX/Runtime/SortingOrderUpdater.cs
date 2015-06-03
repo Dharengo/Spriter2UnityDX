@@ -29,7 +29,7 @@ namespace Spriter2UnityDX {
 		}
 
 		private void Update () {
-			var newZ = trans.position.z;
+			var newZ = trans.localPosition.z;
 			if (newZ != z_index) {
 				z_index = newZ;
 				UpdateSortingOrder ();
