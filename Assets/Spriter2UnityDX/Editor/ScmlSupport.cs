@@ -65,6 +65,7 @@ namespace Spriter2UnityDX.Importing {
 		[XmlArray ("mainline"), XmlArrayItem ("key")]
 		public MainLineKey[] mainlineKeys { get; set; } // <key> tags within a single <mainline> tag
 		[XmlElement ("timeline")] public TimeLine[] timelines { get; set; } // <timeline> tags
+        [XmlElement("soundline")] public SoundLine[] soundlines { get; set; } // <soundline> tags
 	}
 
 	public class MainLineKey : ScmlElement {
@@ -96,6 +97,11 @@ namespace Spriter2UnityDX.Importing {
 		[XmlAttribute] public ObjectType objectType { get; set; } // enum : SPRITE,BONE,BOX,POINT,SOUND,ENTITY,VARIABLE //Dengar.NOTE (except not in all caps)
 		[XmlElement ("key")] public TimeLineKey[] keys { get; set; } // <key> tags within <timeline> tags   
 	}
+    public class SoundLine : ScmlElement
+    {
+        [XmlAttribute] public string name { get; set; }
+        [XmlElement("key")] public TimeLineKey[] keys { get; set; } // <key> tags within <timeline> tags
+    }
 
 	public enum CurveType {instant, linear, quadratic, cubic}
 	public class TimeLineKey : ScmlElement {

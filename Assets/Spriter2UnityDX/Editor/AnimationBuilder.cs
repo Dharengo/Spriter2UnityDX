@@ -19,6 +19,7 @@ namespace Spriter2UnityDX.Animations {
 		private ScmlProcessingInfo ProcessingInfo;
 		private const float inf = float.PositiveInfinity;
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
+        private IDictionary<int, IDictionary<int, AudioClip>> SoundFolders;
 		private IDictionary<string, Transform> Transforms;
 		private string PrefabPath;
 		private Transform Root;
@@ -28,11 +29,12 @@ namespace Spriter2UnityDX.Animations {
 		private AnimatorController Controller;
 		private bool ModdedController = false;
 
-		public AnimationBuilder (ScmlProcessingInfo info, IDictionary<int, IDictionary<int, Sprite>> folders,
-		                         IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
-		                         IDictionary<string, SpriteInfo> defaultSprites,
-		                         string prefabPath, AnimatorController controller) {
-			ProcessingInfo = info; Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
+		public AnimationBuilder (ScmlProcessingInfo info, IDictionary<int, IDictionary<int, Sprite>> folders, IDictionary<int, 
+                IDictionary<int, AudioClip>> soundFolders,
+                IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
+                IDictionary<string, SpriteInfo> defaultSprites,
+                string prefabPath, AnimatorController controller) {
+                    ProcessingInfo = info; Folders = folders; SoundFolders = soundFolders; Transforms = transforms; PrefabPath = prefabPath; 
 			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
 			Root = Transforms ["rootTransform"]; Controller = controller;
 
@@ -83,6 +85,37 @@ namespace Spriter2UnityDX.Animations {
 					}
 				}
 			}
+
+            //add sounds as events to the animation
+            try
+            {
+                List<AnimationEvent> soundEvents = new List<AnimationEvent>();
+
+                foreach (SoundLine sLine in animation.soundlines)
+                {
+                    foreach (TimeLineKey key in sLine.keys)
+                    {
+                        AnimationEvent sEvent = new AnimationEvent();
+                        sEvent.functionName = "playSoundEffect";
+
+                        SpriteInfo sInfo = (SpriteInfo)key.info;
+                        sEvent.objectReferenceParameter = SoundFolders[sInfo.folder][sInfo.file];
+
+                        sEvent.time = key.time;
+                        soundEvents.Add(sEvent);
+                    }
+                }
+                //events must be in choronological order or they won't fire properly
+                soundEvents.Sort((a, b) => a.time.CompareTo(b.time));
+                AnimationUtility.SetAnimationEvents(clip, soundEvents.ToArray());
+            }
+            catch (NullReferenceException e)
+            {
+                //this means there are no sounds
+                //set events to null in case there were sounds on a previous import
+                AnimationUtility.SetAnimationEvents(clip,null);
+            }
+
 			var settings = AnimationUtility.GetAnimationClipSettings (clip);
 			settings.stopTime = animation.length; //Set the animation's length and other settings
 			if (animation.looping) {

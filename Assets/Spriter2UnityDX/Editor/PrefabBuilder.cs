@@ -24,12 +24,25 @@ namespace Spriter2UnityDX.Prefabs {
 			//The process begins by loading up all the textures
 			var success = true;
 			var directory = Path.GetDirectoryName (scmlPath);
+            //having seperate dictionaries for folders and sound folders is a bit inefficient and unintuitive
+            //but was the easiest way to icorporate sounds into the existing system without breaking anything
 			var folders = new Dictionary<int, IDictionary<int, Sprite>> (); //I find these slightly more useful than Lists because
+            var soundFolders = new Dictionary<int, IDictionary<int, AudioClip>>();
+            //var sounds = new Dictionary<int, AudioClip>();
 			foreach (var folder in obj.folders ) { 							//you can be 100% sure that the ids match
 				var files = folders [folder.id] = new Dictionary<int, Sprite> (); //And items can be added in any order
+                var sounds = soundFolders[folder.id] = new Dictionary<int, AudioClip>();
 				foreach (var file in folder.files) {
 					var path = string.Format ("{0}/{1}", directory, file.name);
-					files [file.id] = GetSpriteAtPath (path, file, ref success);
+                    if (file.name.EndsWith(".wav") || file.name.EndsWith(".mp3") || file.name.EndsWith(".aiff") || file.name.EndsWith(".ogg") || file.name.EndsWith(".mpg") || file.name.EndsWith(".mpeg"))
+                    {
+                        //sounds.Add(file.id, GetSoundAtPath(path, file, ref success));
+                        sounds[file.id] = GetSoundAtPath(path, file, ref success);
+                    }
+                    else
+                    {
+                        files[file.id] = GetSpriteAtPath(path, file, ref success);
+                    }
 				}
 			} //The process ends here if any of the textures need to have their settings altered
 			if (!success) return false; //The process will be reattempted after the next import cycle
@@ -47,7 +60,7 @@ namespace Spriter2UnityDX.Prefabs {
 					ProcessingInfo.ModifiedPrefabs.Add (prefab);
 				}
 				try {
-					TryBuild (entity, prefab, instance, directory, prefabPath, folders);
+					TryBuild (entity, prefab, instance, directory, prefabPath, folders, soundFolders);
 				}
 				catch (Exception e) {
 					DestroyImmediate (instance);
@@ -57,7 +70,8 @@ namespace Spriter2UnityDX.Prefabs {
 			return success;
 		}
 
-		private void TryBuild (Entity entity, GameObject prefab, GameObject instance, string directory, string prefabPath, IDictionary<int, IDictionary<int, Sprite>> folders) {
+        private void TryBuild(Entity entity, GameObject prefab, GameObject instance, string directory, string prefabPath, IDictionary<int, IDictionary<int, Sprite>> folders, IDictionary<int, IDictionary<int, AudioClip>> soundFolders)
+        {
 			var controllerPath = string.Format ("{0}/{1}.controller", directory, entity.name);
 			var animator = instance.GetComponent<Animator> (); //Fetches the prefab's Animator
 			if (animator == null) animator = instance.AddComponent<Animator> (); //Or creates one if it doesn't exist
@@ -78,7 +92,7 @@ namespace Spriter2UnityDX.Prefabs {
 			transforms ["rootTransform"] = instance.transform; //The root GameObject needs to be part of this hierarchy as well
 			var defaultBones = new Dictionary<string, SpatialInfo> (); //These are basically the object states on the first frame of the first animation
 			var defaultSprites = new Dictionary<string, SpriteInfo> (); //They are used as control values in determining whether something has changed
-			var animBuilder = new AnimationBuilder (ProcessingInfo, folders, transforms, defaultBones, defaultSprites, prefabPath, controller);
+			var animBuilder = new AnimationBuilder (ProcessingInfo, folders,soundFolders, transforms, defaultBones, defaultSprites, prefabPath, controller);
 			var firstAnim = true; //The prefab's graphic will be determined by the first frame of the first animation
 			foreach (var animation in entity.animations) {
 				var timeLines = new Dictionary<int, TimeLine> ();
@@ -156,6 +170,8 @@ namespace Spriter2UnityDX.Prefabs {
 				}
 			}
 			if (instance.GetComponent<EntityRenderer> () == null) instance.AddComponent<EntityRenderer> (); //Adds an EntityRenderer if one is not already present
+            if (instance.GetComponent<AudioSource>() == null) instance.AddComponent<AudioSource>();
+            if (instance.GetComponent<SoundPlayer>() == null) instance.AddComponent<SoundPlayer>();
 			PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
 			DestroyImmediate (instance); //Apply the instance's changes to the prefab, then destroy the instance.
 		}
@@ -180,5 +196,19 @@ namespace Spriter2UnityDX.Prefabs {
 			else Debug.LogErrorFormat ("Error: No Sprite was found at {0}", path);
 			return (Sprite)AssetDatabase.LoadAssetAtPath (path, typeof(Sprite));
 		}
+        private AudioClip GetSoundAtPath(string path, File file, ref bool success)
+        {
+            var importer = AudioImporter.GetAtPath(path) as AudioImporter;
+            if (importer != null)
+            {
+                //not sure what needs to be done here if anything
+                //just trying to copy the form of GetSpriteAtPath :P
+            }
+            else
+            {
+                Debug.LogErrorFormat("Error: No Sound was found at {0}", path);
+            }
+            return (AudioClip)AssetDatabase.LoadAssetAtPath(path, typeof(AudioClip));
+        }
 	}
 }
