@@ -36,7 +36,6 @@ namespace Spriter2UnityDX.Prefabs {
 					var path = string.Format ("{0}/{1}", directory, file.name);
                     if (file.name.EndsWith(".wav") || file.name.EndsWith(".mp3") || file.name.EndsWith(".aiff") || file.name.EndsWith(".ogg") || file.name.EndsWith(".mpg") || file.name.EndsWith(".mpeg"))
                     {
-                        //sounds.Add(file.id, GetSoundAtPath(path, file, ref success));
                         sounds[file.id] = GetSoundAtPath(path, file, ref success);
                     }
                     else
@@ -170,8 +169,18 @@ namespace Spriter2UnityDX.Prefabs {
 				}
 			}
 			if (instance.GetComponent<EntityRenderer> () == null) instance.AddComponent<EntityRenderer> (); //Adds an EntityRenderer if one is not already present
-            if (instance.GetComponent<AudioSource>() == null) instance.AddComponent<AudioSource>();
-            if (instance.GetComponent<SoundPlayer>() == null) instance.AddComponent<SoundPlayer>();
+            //add components needed for sounds if needed
+            if (animBuilder.HasSounds)
+            {
+                if (instance.GetComponent<AudioSource>() == null) instance.AddComponent<AudioSource>();
+                if (instance.GetComponent<SoundPlayer>() == null) instance.AddComponent<SoundPlayer>();
+            }
+            //remove components if not needed
+            else
+            {
+                if (instance.GetComponent<AudioSource>() != null) Destroy(instance.GetComponent<AudioSource>());
+                if (instance.GetComponent<SoundPlayer>() != null) Destroy(instance.GetComponent<SoundPlayer>());
+            }
 			PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
 			DestroyImmediate (instance); //Apply the instance's changes to the prefab, then destroy the instance.
 		}

@@ -28,6 +28,7 @@ namespace Spriter2UnityDX.Animations {
 		private IDictionary<string, SpriteInfo> DefaultSprites;
 		private AnimatorController Controller;
 		private bool ModdedController = false;
+        public bool HasSounds = false;
 
 		public AnimationBuilder (ScmlProcessingInfo info, IDictionary<int, IDictionary<int, Sprite>> folders, IDictionary<int, 
                 IDictionary<int, AudioClip>> soundFolders,
@@ -85,10 +86,15 @@ namespace Spriter2UnityDX.Animations {
 					}
 				}
 			}
-
-            //add sounds as events to the animation
-            try
+            if (animation.soundlines == null)
             {
+                //this means there are no sounds
+                //set events to null in case there were sounds on a previous import
+                AnimationUtility.SetAnimationEvents(clip, null);
+            }
+            else
+            {
+                HasSounds = true;
                 List<AnimationEvent> soundEvents = new List<AnimationEvent>();
 
                 foreach (SoundLine sLine in animation.soundlines)
@@ -109,13 +115,7 @@ namespace Spriter2UnityDX.Animations {
                 soundEvents.Sort((a, b) => a.time.CompareTo(b.time));
                 AnimationUtility.SetAnimationEvents(clip, soundEvents.ToArray());
             }
-            catch (NullReferenceException e)
-            {
-                //this means there are no sounds
-                //set events to null in case there were sounds on a previous import
-                AnimationUtility.SetAnimationEvents(clip,null);
-            }
-
+          
 			var settings = AnimationUtility.GetAnimationClipSettings (clip);
 			settings.stopTime = animation.length; //Set the animation's length and other settings
 			if (animation.looping) {
