@@ -93,8 +93,10 @@ namespace Spriter2UnityDX.Animations {
 			AnimationUtility.SetAnimationClipSettings (clip, settings);
 			if (OriginalClips.ContainsKey (animation.name)) { //If the clip already exists, copy this clip into the old one
 				var oldClip = OriginalClips [animation.name];
+				var cachedEvents = oldClip.events;
 				EditorUtility.CopySerialized (clip, oldClip);
 				clip = oldClip;
+				AnimationUtility.SetAnimationEvents (clip, cachedEvents)
 				ProcessingInfo.ModifiedAnims.Add (clip);
 			} else {
 				AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
