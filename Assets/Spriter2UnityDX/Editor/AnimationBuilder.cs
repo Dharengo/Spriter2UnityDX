@@ -161,14 +161,14 @@ namespace Spriter2UnityDX.Animations {
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
 					break;
 				case ChangedValues.Sprite :
-					var swapper = child.GetComponent<SpriteSwapper> ();
-					if (swapper == null) { //Add a Swapper if one doesn't already exist
-						swapper = child.gameObject.AddComponent<SpriteSwapper> ();
+					var swapper = child.GetComponent<TextureController> ();
+					if (swapper == null) { //Add a Texture Controller if one doesn't already exist
+						swapper = child.gameObject.AddComponent<TextureController> ();
 						var info = (SpriteInfo)defaultInfo;
 						swapper.Sprites = new[] {Folders [info.folder] [info.file]};
 					}
 					SetKeys (kvPair.Value, timeLine, ref swapper.Sprites, animation);
-					clip.SetCurve (childPath, typeof(SpriteSwapper), "DisplayedSprite", kvPair.Value);
+					clip.SetCurve (childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
 					break;
 				}
 			}

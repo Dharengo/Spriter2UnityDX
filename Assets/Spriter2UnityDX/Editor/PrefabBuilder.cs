@@ -1,4 +1,4 @@
-﻿//This project is open source. Anyone can use any part of this code however they wish
+//This project is open source. Anyone can use any part of this code however they wish
 //Feel free to use this code in your own projects, or expand on this code
 //If you have any improvements to the code itself, please visit
 //https://github.com/Dharengo/Spriter2UnityDX and share your suggestions by creating a fork
@@ -126,7 +126,7 @@ namespace Spriter2UnityDX.Prefabs {
 								child.SetParent (parent);
 							}
 							transforms [timeLine.name] = child;
-							var swapper = child.GetComponent<SpriteSwapper> (); //Destroy the Sprite Swapper, we'll make a new one later
+							var swapper = child.GetComponent<TextureController> (); //Destroy the Sprite Swapper, we'll make a new one later
 							if (swapper != null) DestroyImmediate (swapper);
 							var renderer = child.GetComponent<SpriteRenderer> (); //Get or create a Sprite Renderer
 							if (renderer == null) renderer = child.gameObject.AddComponent<SpriteRenderer> ();
