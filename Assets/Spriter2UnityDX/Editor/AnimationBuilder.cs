@@ -96,7 +96,7 @@ namespace Spriter2UnityDX.Animations {
 				var cachedEvents = oldClip.events;
 				EditorUtility.CopySerialized (clip, oldClip);
 				clip = oldClip;
-				AnimationUtility.SetAnimationEvents (clip, cachedEvents)
+				AnimationUtility.SetAnimationEvents (clip, cachedEvents);
 				ProcessingInfo.ModifiedAnims.Add (clip);
 			} else {
 				AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
