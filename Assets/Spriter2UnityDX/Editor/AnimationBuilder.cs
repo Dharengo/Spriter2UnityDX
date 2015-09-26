@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEditor.Animations;
 using System;
 using System.Collections.Generic;
+using Object = UnityEngine.Object;
 
 namespace Spriter2UnityDX.Animations {
 	using Importing;
@@ -21,6 +22,7 @@ namespace Spriter2UnityDX.Animations {
 		private IDictionary<int, IDictionary<int, Sprite>> Folders;
 		private IDictionary<string, Transform> Transforms;
 		private string PrefabPath;
+		private string AnimationsPath;
 		private Transform Root;
 		private IDictionary<string, AnimationClip> OriginalClips = new Dictionary <string, AnimationClip> ();
 		private IDictionary<string, SpatialInfo> DefaultBones;
@@ -35,11 +37,22 @@ namespace Spriter2UnityDX.Animations {
 			ProcessingInfo = info; Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
 			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
 			Root = Transforms ["rootTransform"]; Controller = controller;
+			AnimationsPath = PrefabPath.Substring (0, PrefabPath.LastIndexOf ('.')) + "_Anims";
 
-			foreach (var item in AssetDatabase.LoadAllAssetRepresentationsAtPath(prefabPath)) {
+			foreach (var item in GetOrigClips ()) {
 				var clip = item as AnimationClip;
 				if (clip != null) OriginalClips [clip.name] = clip;
 			}
+		}
+
+		public Object[] GetOrigClips () {
+			switch (S2USettings.Settings.AnimationImportStyle) {
+			case AnimationImportOption.NestedInPrefab :
+				return AssetDatabase.LoadAllAssetRepresentationsAtPath(PrefabPath);
+			case AnimationImportOption.SeparateFolder :
+				return AssetDatabase.LoadAllAssetsAtPath(AnimationsPath);
+			}
+			return null;
 		}
 
 		public void Build (Animation animation, IDictionary<int, TimeLine> timeLines) {
@@ -99,7 +112,20 @@ namespace Spriter2UnityDX.Animations {
 				AnimationUtility.SetAnimationEvents (clip, cachedEvents);
 				ProcessingInfo.ModifiedAnims.Add (clip);
 			} else {
-				AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
+				switch (S2USettings.Settings.AnimationImportStyle) {
+				case AnimationImportOption.NestedInPrefab : 
+					AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
+					break;
+				case AnimationImportOption.SeparateFolder :
+					if (!AssetDatabase.IsValidFolder (AnimationsPath)) {
+						var splitIndex = AnimationsPath.LastIndexOf ('/');
+						var path = AnimationsPath.Substring (0, splitIndex);
+						var newFolder = AnimationsPath.Substring (splitIndex + 1);
+						AssetDatabase.CreateFolder (path, newFolder);
+					}
+					AssetDatabase.CreateAsset (clip, string.Format ("{0}/{1}.anim", AnimationsPath, clip.name));
+					break;
+				}
 				ProcessingInfo.NewAnims.Add (clip);
 			}
 			if (!ArrayUtility.Contains (Controller.animationClips, clip)) { //Don't add the clip if it's already there
