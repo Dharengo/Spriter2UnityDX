@@ -1,11 +1,13 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 using System.Collections;
 
 //Customizable settings for the importer
-namespace Spriter2UnityDX {
-	public class S2USettings : ScriptableObject {
-		public const string SETTINGS_PATH = "Assets/Spriter2UnityDX/Editor/Settings.asset";
+namespace Spriter2UnityDX
+{
+	public class S2USettings : ScriptableObject
+	{
+		public const string SETTINGS_PATH = "Assets/Library/Spriter2UnityDX/Editor/Settings.asset";
 
 		public static S2USettings Settings {
 			get {
@@ -21,12 +23,28 @@ namespace Spriter2UnityDX {
 		}
 
 		[MenuItem ("Edit/Project Settings/Spriter2UnityDX")]
-		public static void Select () {
+		public static void Select ()
+		{
 			Selection.activeObject = Settings;
 		}
 
 		public AnimationImportOption AnimationImportStyle;
+
+		[Header("Follow SCML Sprite order")]
+		public string
+			ScmlPath = "";
+		public bool followScmlSprite = false;
+	
+
+		[Header("Change your prefab")]
+		public GameObject
+			prefab;
 	}
 
-	public enum AnimationImportOption : byte { NestedInPrefab, SeparateFolder }
+	public enum AnimationImportOption : byte
+	{
+		NestedInPrefab,
+		SeparateFolder
+	}
 }
+
