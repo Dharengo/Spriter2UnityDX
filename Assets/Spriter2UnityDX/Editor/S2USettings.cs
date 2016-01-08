@@ -7,7 +7,7 @@ namespace Spriter2UnityDX
 {
 	public class S2USettings : ScriptableObject
 	{
-		public const string SETTINGS_PATH = "Assets/Library/Spriter2UnityDX/Editor/Settings.asset";
+		public const string SETTINGS_PATH = "Assets/Spriter2UnityDX/Editor/Settings.asset";
 
 		public static S2USettings Settings {
 			get {
