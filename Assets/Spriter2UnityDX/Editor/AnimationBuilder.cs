@@ -46,7 +46,7 @@ namespace Spriter2UnityDX.Animations {
 		}
 
 		public Object[] GetOrigClips () {
-			switch (S2USettings.Settings.AnimationImportStyle) {
+			switch (S2USettings.ImportStyle) {
 			case AnimationImportOption.NestedInPrefab :
 				return AssetDatabase.LoadAllAssetRepresentationsAtPath(PrefabPath);
 			case AnimationImportOption.SeparateFolder :
@@ -112,7 +112,7 @@ namespace Spriter2UnityDX.Animations {
 				AnimationUtility.SetAnimationEvents (clip, cachedEvents);
 				ProcessingInfo.ModifiedAnims.Add (clip);
 			} else {
-				switch (S2USettings.Settings.AnimationImportStyle) {
+				switch (S2USettings.ImportStyle) {
 				case AnimationImportOption.NestedInPrefab : 
 					AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
 					break;
