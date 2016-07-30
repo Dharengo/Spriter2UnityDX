@@ -11,10 +11,6 @@ namespace Spriter2UnityDX.Importing
         void OnEnable()
         {
             titleContent = new GUIContent("Import Options");
-            if(ScmlImportOptions.options == null)
-            {
-                ScmlImportOptions.options = new ScmlImportOptions();
-            }
         }
 
         void OnGUI()
