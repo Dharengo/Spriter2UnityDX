@@ -118,12 +118,32 @@ namespace Spriter2UnityDX.Importing {
 		private float _x;
 		[XmlAttribute] public float x { 
 			get { return _x; }
-			set { _x = value * 0.01f; } //Unity measurement units are 100x smaller than Spriter units
+			set
+            {
+                if (ScmlImportOptions.options != null)
+                {
+                    _x = value * (1f / ScmlImportOptions.options.pixelsPerUnit); // Convert Spriter space into Unity space using pixelsPerUnit
+                }
+                else
+                {
+                    _x = value * 0.01f;
+                }
+            } 
 		} 
 		private float _y;
 		[XmlAttribute] public float y { 
 			get { return _y; }
-			set { _y = value * 0.01f; }
+			set
+            {
+                if (ScmlImportOptions.options != null)
+                {
+                    _y = value * (1f / ScmlImportOptions.options.pixelsPerUnit); // Convert Spriter space into Unity space using pixelsPerUnit
+                }
+                else
+                {
+                    _y = value * 0.01f;
+                }
+            }
 		} 
 		public Quaternion rotation { get; set; } //"angle" refers to a euler angle's Z value
 		[XmlAttribute] public float angle { 	//Unity doesn't actually use euler angles below the hood though

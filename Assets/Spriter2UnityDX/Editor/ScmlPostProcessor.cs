@@ -20,16 +20,36 @@ namespace Spriter2UnityDX.PostProcessing {
 		//Called after an import, detects if imported files end in .scml
 		private static void OnPostprocessAllAssets (string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths) {
 			var filesToProcess = new List<string> ();
-			foreach (var path in importedAssets)
-				if (path.EndsWith (".scml") && !path.Contains("autosave"))
-					filesToProcess.Add (path);
+            bool optionsNeedUpdated = false;
+            foreach (var path in importedAssets)
+            {
+                if (path.EndsWith(".scml") && !path.Contains("autosave"))
+                {
+                    filesToProcess.Add(path);
+                    if(!cachedPaths.Contains(path))
+                    {
+                        optionsNeedUpdated = true;
+                    }
+                }
+            }
 			foreach (var path in cachedPaths) { //Are there any incomplete processes from the last import cycle?
 				if (!filesToProcess.Contains (path))
 					filesToProcess.Add (path);
 			}
 			cachedPaths.Clear ();
-			if (filesToProcess.Count > 0) 
-				ProcessFiles (filesToProcess);
+            if (filesToProcess.Count > 0)
+            {
+                if(optionsNeedUpdated || ScmlImportOptions.options == null)
+                {
+                    ScmlImportOptionsWindow optionsWindow = EditorWindow.GetWindow<ScmlImportOptionsWindow>();
+                    ScmlImportOptions.options = new ScmlImportOptions();
+                    optionsWindow.OnClose += () => ProcessFiles(filesToProcess);
+                }
+                else
+                {
+                    ProcessFiles(filesToProcess);
+                }
+            }
 
 		}
 
