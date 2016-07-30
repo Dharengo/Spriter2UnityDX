@@ -165,13 +165,17 @@ namespace Spriter2UnityDX.Prefabs {
 			var importer = TextureImporter.GetAtPath (path) as TextureImporter;
 			if (importer != null) { //If no TextureImporter exists, there's no texture to be found
 				if ((importer.textureType != TextureImporterType.Sprite || importer.spritePivot.x != file.pivot_x 
-				     || importer.spritePivot.y != file.pivot_y) && !InvalidImporters.Contains (importer)) {
+				     || importer.spritePivot.y != file.pivot_y || (ScmlImportOptions.options != null && importer.spritePixelsPerUnit != ScmlImportOptions.options.pixelsPerUnit)) && !InvalidImporters.Contains (importer)) {
 					if (success) success = false; //If the texture type isn't Sprite, or the pivot isn't set properly, 
 					var settings = new TextureImporterSettings (); //set the texture type and pivot
 					importer.ReadTextureSettings (settings);	//and make success false so the process can abort
 					settings.ApplyTextureType (TextureImporterType.Sprite, true); //after all the textures have been processed
 					settings.spriteAlignment = (int)SpriteAlignment.Custom;
 					settings.spritePivot = new Vector2 (file.pivot_x, file.pivot_y);
+                    if(ScmlImportOptions.options != null)
+                    {
+                        settings.spritePixelsPerUnit = ScmlImportOptions.options.pixelsPerUnit;
+                    }
 					importer.SetTextureSettings (settings);
 					importer.SaveAndReimport ();
 					InvalidImporters.Add (importer);
