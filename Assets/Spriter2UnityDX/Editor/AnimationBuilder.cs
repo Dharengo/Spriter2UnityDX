@@ -187,7 +187,21 @@ namespace Spriter2UnityDX.Animations {
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
 					break;
 				case ChangedValues.Sprite :
+                    if (ScmlImportOptions.options != null && ScmlImportOptions.options.useUnitySpriteSwapping)
+                    {
                         SetSpriteSwapKeys(child, timeLine, clip, animation);
+                    }
+                    else {
+                        var swapper = child.GetComponent<TextureController>();
+                        if (swapper == null)
+                        { //Add a Texture Controller if one doesn't already exist
+                            swapper = child.gameObject.AddComponent<TextureController>();
+                            var info = (SpriteInfo)defaultInfo;
+                            swapper.Sprites = new[] { Folders[info.folder][info.file] };
+                        }
+                        SetKeys(kvPair.Value, timeLine, ref swapper.Sprites, animation);
+                        clip.SetCurve(childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
+                    }
 					break;
 				}
 			}
@@ -246,7 +260,6 @@ namespace Spriter2UnityDX.Animations {
 			curve.AddKey (animation.length, infoValue (timeLine.keys [lastIndex].info)); //At the end of the curve
 		}
 
-        [ObsoleteAttribute("Use SetSpriteSwapKeys instead.")]
 		private void SetKeys (AnimationCurve curve, TimeLine timeLine, ref Sprite[] sprites, Animation animation) {
 			foreach (var key in timeLine.keys) { //Create a key for every key on its personal TimeLine
 				var info = (SpriteInfo)key.info;
@@ -351,7 +364,7 @@ namespace Spriter2UnityDX.Animations {
 				if (scontrol != null && !rv.ContainsKey (ChangedValues.Sprite)) {
 					var sinfo = (SpriteInfo)info;
 					if (scontrol.file != sinfo.file || scontrol.folder != sinfo.folder)
-						rv [ChangedValues.Sprite] = null;
+						rv [ChangedValues.Sprite] = new AnimationCurve ();
 				}
 			}
 			return rv;
