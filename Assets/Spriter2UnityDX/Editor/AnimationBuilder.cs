@@ -187,14 +187,21 @@ namespace Spriter2UnityDX.Animations {
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
 					break;
 				case ChangedValues.Sprite :
-					var swapper = child.GetComponent<TextureController> ();
-					if (swapper == null) { //Add a Texture Controller if one doesn't already exist
-						swapper = child.gameObject.AddComponent<TextureController> ();
-						var info = (SpriteInfo)defaultInfo;
-						swapper.Sprites = new[] {Folders [info.folder] [info.file]};
-					}
-					SetKeys (kvPair.Value, timeLine, ref swapper.Sprites, animation);
-					clip.SetCurve (childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
+                    if (ScmlImportOptions.options != null && ScmlImportOptions.options.useUnitySpriteSwapping)
+                    {
+                        SetSpriteSwapKeys(child, timeLine, clip, animation);
+                    }
+                    else {
+                        var swapper = child.GetComponent<TextureController>();
+                        if (swapper == null)
+                        { //Add a Texture Controller if one doesn't already exist
+                            swapper = child.gameObject.AddComponent<TextureController>();
+                            var info = (SpriteInfo)defaultInfo;
+                            swapper.Sprites = new[] { Folders[info.folder][info.file] };
+                        }
+                        SetKeys(kvPair.Value, timeLine, ref swapper.Sprites, animation);
+                        clip.SetCurve(childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
+                    }
 					break;
 				}
 			}
@@ -262,6 +269,22 @@ namespace Spriter2UnityDX.Animations {
 			var lastInfo = (SpriteInfo)timeLine.keys [lastIndex].info;
 			curve.AddKey (new Keyframe (animation.length, GetIndexOrAdd (ref sprites, Folders [lastInfo.folder] [lastInfo.file]), inf, inf));
 		}
+
+        void SetSpriteSwapKeys(Transform child, TimeLine timeLine, AnimationClip clip, Animation animation)
+        {
+            // Create ObjectReferenceCurve for swapping sprites. This curve will save data in object form instead of floats like regular AnimationCurve.
+            var keyframes = new List<ObjectReferenceKeyframe>();
+            foreach (var key in timeLine.keys)
+            {
+                var info = (SpriteInfo)key.info;
+                var sprite = Folders[info.folder][info.file];
+                keyframes.Add(new ObjectReferenceKeyframe { time = key.time, value = sprite });
+            }
+            var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
+            var lastInfo = (SpriteInfo)timeLine.keys[lastIndex].info;
+            keyframes.Add(new ObjectReferenceKeyframe { time = animation.length, value = Folders[lastInfo.folder][lastInfo.file] });
+            AnimationUtility.SetObjectReferenceCurve(clip, new EditorCurveBinding { path = GetPathToChild(child), propertyName = "m_Sprite", type = typeof(SpriteRenderer) }, keyframes.ToArray());
+        }
 
 		private int GetIndexOrAdd (ref Sprite[] sprites, Sprite sprite) {
 			var index = ArrayUtility.IndexOf (sprites, sprite); //If the array already contains the sprite, return index

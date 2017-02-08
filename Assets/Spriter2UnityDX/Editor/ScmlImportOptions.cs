@@ -15,7 +15,8 @@ namespace Spriter2UnityDX.Importing
 
         void OnGUI()
         {
-            ScmlImportOptions.options.pixelsPerUnit = EditorGUILayout.FloatField(ScmlImportOptions.options.pixelsPerUnit);
+            ScmlImportOptions.options.pixelsPerUnit = EditorGUILayout.FloatField("Pixels per unit", ScmlImportOptions.options.pixelsPerUnit);
+            ScmlImportOptions.options.useUnitySpriteSwapping = EditorGUILayout.Toggle("Unity's native sprite swapping", ScmlImportOptions.options.useUnitySpriteSwapping);
             if(GUILayout.Button("Done"))
             {
                 Close();
@@ -33,5 +34,7 @@ namespace Spriter2UnityDX.Importing
         public static ScmlImportOptions options = null;
 
         public float pixelsPerUnit = 100f;
+
+        public bool useUnitySpriteSwapping;
     }
 }
