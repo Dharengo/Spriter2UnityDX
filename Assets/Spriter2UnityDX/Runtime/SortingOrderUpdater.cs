@@ -12,7 +12,7 @@ namespace Spriter2UnityDX {
 		private int sor;
 		public int SortingOrder {
 			get { return sor; }
-			set { 
+			set {
 				sor = value;
 				UpdateSortingOrder ();
 			}

@@ -31,11 +31,11 @@ namespace Spriter2UnityDX.Animations {
 		private bool ModdedController = false;
 
 		public AnimationBuilder (ScmlProcessingInfo info, IDictionary<int, IDictionary<int, Sprite>> folders,
-		                         IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
-		                         IDictionary<string, SpriteInfo> defaultSprites,
-		                         string prefabPath, AnimatorController controller) {
-			ProcessingInfo = info; Folders = folders; Transforms = transforms; PrefabPath = prefabPath; 
-			DefaultBones = defaultBones; DefaultSprites = defaultSprites; 
+								 IDictionary<string, Transform> transforms, IDictionary<string, SpatialInfo> defaultBones,
+								 IDictionary<string, SpriteInfo> defaultSprites,
+								 string prefabPath, AnimatorController controller) {
+			ProcessingInfo = info; Folders = folders; Transforms = transforms; PrefabPath = prefabPath;
+			DefaultBones = defaultBones; DefaultSprites = defaultSprites;
 			Root = Transforms ["rootTransform"]; Controller = controller;
 			AnimationsPath = PrefabPath.Substring (0, PrefabPath.LastIndexOf ('.')) + "_Anims";
 
@@ -113,7 +113,7 @@ namespace Spriter2UnityDX.Animations {
 				ProcessingInfo.ModifiedAnims.Add (clip);
 			} else {
 				switch (S2USettings.ImportStyle) {
-				case AnimationImportOption.NestedInPrefab : 
+				case AnimationImportOption.NestedInPrefab :
 					AssetDatabase.AddObjectToAsset (clip, PrefabPath); //Otherwise create a new one
 					break;
 				case AnimationImportOption.SeparateFolder :
@@ -147,7 +147,7 @@ namespace Spriter2UnityDX.Animations {
 
 		private void SetCurves (Transform child, SpatialInfo defaultInfo, List<TimeLineKey> parentTimeline, TimeLine timeLine, AnimationClip clip, Animation animation, ref float defaultZ) {
 			var childPath = GetPathToChild (child);
-			foreach (var kvPair in GetCurves (timeLine, defaultInfo, parentTimeline)) { //Makes sure that curves are only added for properties 
+			foreach (var kvPair in GetCurves (timeLine, defaultInfo, parentTimeline)) { //Makes sure that curves are only added for properties
 				switch (kvPair.Key) {									//that actually mutate in the animation
 				case ChangedValues.PositionX :
 					SetKeys (kvPair.Value, timeLine, x => x.x, animation);
@@ -187,21 +187,21 @@ namespace Spriter2UnityDX.Animations {
 					clip.SetCurve (childPath, typeof(SpriteRenderer), "m_Color.a", kvPair.Value);
 					break;
 				case ChangedValues.Sprite :
-                    if (ScmlImportOptions.options != null && ScmlImportOptions.options.useUnitySpriteSwapping)
-                    {
-                        SetSpriteSwapKeys(child, timeLine, clip, animation);
-                    }
-                    else {
-                        var swapper = child.GetComponent<TextureController>();
-                        if (swapper == null)
-                        { //Add a Texture Controller if one doesn't already exist
-                            swapper = child.gameObject.AddComponent<TextureController>();
-                            var info = (SpriteInfo)defaultInfo;
-                            swapper.Sprites = new[] { Folders[info.folder][info.file] };
-                        }
-                        SetKeys(kvPair.Value, timeLine, ref swapper.Sprites, animation);
-                        clip.SetCurve(childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
-                    }
+					if (ScmlImportOptions.options != null && ScmlImportOptions.options.useUnitySpriteSwapping)
+					{
+						SetSpriteSwapKeys(child, timeLine, clip, animation);
+					}
+					else {
+						var swapper = child.GetComponent<TextureController>();
+						if (swapper == null)
+						{ //Add a Texture Controller if one doesn't already exist
+							swapper = child.gameObject.AddComponent<TextureController>();
+							var info = (SpriteInfo)defaultInfo;
+							swapper.Sprites = new[] { Folders[info.folder][info.file] };
+						}
+						SetKeys(kvPair.Value, timeLine, ref swapper.Sprites, animation);
+						clip.SetCurve(childPath, typeof(TextureController), "DisplayedSprite", kvPair.Value);
+					}
 					break;
 				}
 			}
@@ -227,7 +227,7 @@ namespace Spriter2UnityDX.Animations {
 						changedZ = true;
 						if (key.time > 0) kfsZ.Add (new Keyframe (0f, defaultZ, inf, inf));
 					}
-					if (changedZ) 
+					if (changedZ)
 						kfsZ.Add (new Keyframe (key.time, mref.z_index, inf, inf));
 					if (!active) {
 						if (kfsActive.Count <= 0 && key.time > 0) kfsActive.Add (new Keyframe (0f, 0f, inf, inf));
@@ -270,21 +270,21 @@ namespace Spriter2UnityDX.Animations {
 			curve.AddKey (new Keyframe (animation.length, GetIndexOrAdd (ref sprites, Folders [lastInfo.folder] [lastInfo.file]), inf, inf));
 		}
 
-        void SetSpriteSwapKeys(Transform child, TimeLine timeLine, AnimationClip clip, Animation animation)
-        {
-            // Create ObjectReferenceCurve for swapping sprites. This curve will save data in object form instead of floats like regular AnimationCurve.
-            var keyframes = new List<ObjectReferenceKeyframe>();
-            foreach (var key in timeLine.keys)
-            {
-                var info = (SpriteInfo)key.info;
-                var sprite = Folders[info.folder][info.file];
-                keyframes.Add(new ObjectReferenceKeyframe { time = key.time, value = sprite });
-            }
-            var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
-            var lastInfo = (SpriteInfo)timeLine.keys[lastIndex].info;
-            keyframes.Add(new ObjectReferenceKeyframe { time = animation.length, value = Folders[lastInfo.folder][lastInfo.file] });
-            AnimationUtility.SetObjectReferenceCurve(clip, new EditorCurveBinding { path = GetPathToChild(child), propertyName = "m_Sprite", type = typeof(SpriteRenderer) }, keyframes.ToArray());
-        }
+		void SetSpriteSwapKeys(Transform child, TimeLine timeLine, AnimationClip clip, Animation animation)
+		{
+			// Create ObjectReferenceCurve for swapping sprites. This curve will save data in object form instead of floats like regular AnimationCurve.
+			var keyframes = new List<ObjectReferenceKeyframe>();
+			foreach (var key in timeLine.keys)
+			{
+				var info = (SpriteInfo)key.info;
+				var sprite = Folders[info.folder][info.file];
+				keyframes.Add(new ObjectReferenceKeyframe { time = key.time, value = sprite });
+			}
+			var lastIndex = (animation.looping) ? 0 : timeLine.keys.Length - 1;
+			var lastInfo = (SpriteInfo)timeLine.keys[lastIndex].info;
+			keyframes.Add(new ObjectReferenceKeyframe { time = animation.length, value = Folders[lastInfo.folder][lastInfo.file] });
+			AnimationUtility.SetObjectReferenceCurve(clip, new EditorCurveBinding { path = GetPathToChild(child), propertyName = "m_Sprite", type = typeof(SpriteRenderer) }, keyframes.ToArray());
+		}
 
 		private int GetIndexOrAdd (ref Sprite[] sprites, Sprite sprite) {
 			var index = ArrayUtility.IndexOf (sprites, sprite); //If the array already contains the sprite, return index
@@ -313,11 +313,11 @@ namespace Spriter2UnityDX.Animations {
 			}
 			return null;
 		}
-								
+
 		private IDictionary<Transform, string> ChildPaths = new Dictionary<Transform, string> ();
 		private string GetPathToChild (Transform child) { //Caches the relative paths to children so they only have to be calculated once
 			string path;
-			if (ChildPaths.TryGetValue (child, out path)) return path; 
+			if (ChildPaths.TryGetValue (child, out path)) return path;
 			else return ChildPaths [child] = AnimationUtility.CalculateTransformPath (child, Root);
 		}
 
@@ -345,12 +345,12 @@ namespace Spriter2UnityDX.Animations {
 					info.Process (parentInfo);
 				}
 				if (!rv.ContainsKey (ChangedValues.PositionX) && (defaultInfo.x != info.x || defaultInfo.y != info.y)) {
-					rv [ChangedValues.PositionX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for all members  
+					rv [ChangedValues.PositionX] = new AnimationCurve (); //There will be irregular behaviour if curves aren't added for all members
 					rv [ChangedValues.PositionY] = new AnimationCurve (); //in a group, so when one is set, the others have to be set as well
 					rv [ChangedValues.PositionZ] = new AnimationCurve ();
 				}
 				if (!rv.ContainsKey (ChangedValues.RotationZ) && (defaultInfo.rotation.z != info.rotation.z || defaultInfo.rotation.w != info.rotation.w)) {
-				    rv [ChangedValues.RotationZ] = new AnimationCurve ();//x and y not necessary since the default of 0 is fine
+					rv [ChangedValues.RotationZ] = new AnimationCurve ();//x and y not necessary since the default of 0 is fine
 					rv [ChangedValues.RotationW] = new AnimationCurve ();
 				}
 				if (!rv.ContainsKey (ChangedValues.ScaleX) && (defaultInfo.scale_x != info.scale_x || defaultInfo.scale_y != info.scale_y)) {

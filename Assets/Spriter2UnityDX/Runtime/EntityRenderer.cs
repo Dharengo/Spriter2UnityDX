@@ -38,7 +38,7 @@ namespace Spriter2UnityDX {
 		[SerializeField, HideInInspector] private int sortingOrder = 0;
 		public int SortingOrder {
 			get { return sortingOrder; }
-			set { 
+			set {
 				sortingOrder = value;
 				if (applySpriterZOrder)
 					for (var i = 0; i < updaters.Length; i++)
@@ -50,7 +50,7 @@ namespace Spriter2UnityDX {
 		[SerializeField, HideInInspector] private bool applySpriterZOrder = false;
 		public bool ApplySpriterZOrder {
 			get { return applySpriterZOrder; }
-			set { 
+			set {
 				applySpriterZOrder = value;
 				if (applySpriterZOrder) {
 					var list = new List<SortingOrderUpdater> ();
@@ -86,7 +86,7 @@ namespace Spriter2UnityDX {
 		private void OnDisable () {
 			DoForAll (x => x.enabled = false);
 		}
-		
+
 		private void DoForAll (Action<SpriteRenderer> action) {
 			for (var i = 0; i < renderers.Length; i++) action (renderers [i]);
 		}

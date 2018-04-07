@@ -20,7 +20,7 @@ namespace Spriter2UnityDX {
 		private SpriteRenderer srenderer;
 		private Animator animator;
 		private int lastDisplayed;
-		
+
 		private void Awake () {
 			srenderer = GetComponent<SpriteRenderer> ();
 			lastDisplayed = (int)DisplayedSprite;

@@ -34,7 +34,7 @@ namespace Spriter2UnityDX {
 
 		public override void OnInspectorGUI () {
 			EditorGUI.BeginChangeCheck ();
-			var label = new GUIContent ("Animation Import Style", 
+			var label = new GUIContent ("Animation Import Style",
 				"By default, animations are nested into the generated prefab. Change this option to instead place animations into a separate folder.");
 			importStyle = (AnimationImportOption)EditorGUILayout.EnumPopup (label, importStyle);
 			if (EditorGUI.EndChangeCheck ()) S2USettings.ImportStyle = importStyle;
