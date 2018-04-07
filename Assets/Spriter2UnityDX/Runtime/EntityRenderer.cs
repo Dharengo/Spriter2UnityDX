@@ -3,7 +3,9 @@ using System;
 using System.Collections.Generic;
 
 namespace Spriter2UnityDX {
-	[DisallowMultipleComponent, ExecuteInEditMode, AddComponentMenu("")]
+	[DisallowMultipleComponent]
+	[ExecuteInEditMode]
+	[AddComponentMenu("")]
 	public class EntityRenderer : MonoBehaviour {
 		private SpriteRenderer[] renderers = new SpriteRenderer [0];
 		private SortingOrderUpdater[] updaters = new SortingOrderUpdater [0];
@@ -41,8 +43,8 @@ namespace Spriter2UnityDX {
 			set {
 				sortingOrder = value;
 				if (applySpriterZOrder)
-					for (var i = 0; i < updaters.Length; i++)
-						updaters [i].SortingOrder = value;
+					foreach (var updater in updaters)
+						updater.SortingOrder = value;
 				else DoForAll (x => x.sortingOrder = value);
 			}
 		}
@@ -65,9 +67,9 @@ namespace Spriter2UnityDX {
 					updaters = list.ToArray ();
 				}
 				else {
-					for (var i = 0; i < updaters.Length; i++) {
-						if (Application.isPlaying) Destroy (updaters [i]);
-						else DestroyImmediate (updaters [i]);
+					foreach (var updater in updaters) {
+						if (Application.isPlaying) Destroy (updater);
+						else DestroyImmediate (updater);
 					}
 					updaters = new SortingOrderUpdater [0];
 					DoForAll (x => x.sortingOrder = sortingOrder);
@@ -95,7 +97,7 @@ namespace Spriter2UnityDX {
 			renderers = GetComponentsInChildren<SpriteRenderer> (true);
 			updaters = GetComponentsInChildren<SortingOrderUpdater> (true);
 			var length = updaters.Length;
-			for (var i = 0; i < length; i++) updaters [i].SpriteCount = length;
+			foreach (var updater in updaters) updater.SpriteCount = length;
 			_first = null;
 		}
 	}

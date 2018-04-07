@@ -19,9 +19,13 @@ namespace Spriter2UnityDX {
 		}
 	}
 
-	public enum AnimationImportOption : byte { NestedInPrefab, SeparateFolder }
+	public enum AnimationImportOption : byte {
+		NestedInPrefab,
+		SeparateFolder,
+	}
 
-	[CustomEditor (typeof(S2USettings))] public class SettingsEditor: Editor {
+	[CustomEditor (typeof(S2USettings))]
+	public class SettingsEditor: Editor {
 		private AnimationImportOption importStyle;
 
 		private void OnEnable () {

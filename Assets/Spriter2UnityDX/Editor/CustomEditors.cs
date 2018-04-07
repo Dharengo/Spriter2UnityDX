@@ -16,24 +16,38 @@ namespace Spriter2UnityDX.Editors {
 		}
 
 		// Get the sorting layer names
-		private string[] GetSortingLayerNames() {
-			var sortingLayers = typeof(InternalEditorUtility).GetProperty("sortingLayerNames", BindingFlags.Static | BindingFlags.NonPublic);
-			return (string[])sortingLayers.GetValue(null, new object[0]);
+		private string[] GetSortingLayerNames () {
+			var sortingLayers = typeof(InternalEditorUtility).GetProperty ("sortingLayerNames", BindingFlags.Static | BindingFlags.NonPublic);
+			return (string[])sortingLayers.GetValue (null, new object[0]);
 		}
 
-		public override void OnInspectorGUI ()
-		{
+		public override void OnInspectorGUI () {
 			var changed = false;
 			var color = EditorGUILayout.ColorField ("Color", renderer.Color);
-			if (color != renderer.Color) {renderer.Color = color; changed = true;}
+			if (color != renderer.Color) {
+				renderer.Color = color;
+				changed = true;
+			}
 			var material = (Material)EditorGUILayout.ObjectField ("Material", renderer.Material, typeof(Material), false);
-			if (material != renderer.Material) {renderer.Material = material; changed = true;}
+			if (material != renderer.Material) {
+				renderer.Material = material;
+				changed = true;
+			}
 			var sortIndex = EditorGUILayout.Popup ("Sorting Layer", GetIndex (renderer.SortingLayerName), layerNames, GUILayout.ExpandWidth (true));
-			if (layerNames [sortIndex] != renderer.SortingLayerName) {renderer.SortingLayerName = layerNames[sortIndex]; changed = true;}
+			if (layerNames [sortIndex] != renderer.SortingLayerName) {
+				renderer.SortingLayerName = layerNames[sortIndex];
+				changed = true;
+			}
 			var sortingOrder = EditorGUILayout.IntField ("Order In Layer", renderer.SortingOrder);
-			if (sortingOrder != renderer.SortingOrder) {renderer.SortingOrder = sortingOrder; changed = true;}
+			if (sortingOrder != renderer.SortingOrder) {
+				renderer.SortingOrder = sortingOrder;
+				changed = true;
+			}
 			var applyZ = EditorGUILayout.Toggle ("Apply Spriter Z Order", renderer.ApplySpriterZOrder);
-			if (applyZ != renderer.ApplySpriterZOrder) {renderer.ApplySpriterZOrder = applyZ; changed = true;}
+			if (applyZ != renderer.ApplySpriterZOrder) {
+				renderer.ApplySpriterZOrder = applyZ;
+				changed = true;
+			}
 			if (changed) EditorUtility.SetDirty(renderer);
 		}
 
