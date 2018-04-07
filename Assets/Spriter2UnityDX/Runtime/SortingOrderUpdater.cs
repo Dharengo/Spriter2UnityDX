@@ -3,7 +3,10 @@ using System;
 using System.Collections;
 
 namespace Spriter2UnityDX {
-	[RequireComponent (typeof(SpriteRenderer)), ExecuteInEditMode, DisallowMultipleComponent, AddComponentMenu("")]
+	[RequireComponent (typeof(SpriteRenderer))]
+	[ExecuteInEditMode]
+	[DisallowMultipleComponent]
+	[AddComponentMenu("")]
 	public class SortingOrderUpdater : MonoBehaviour {
 		private Transform trans;
 		private SpriteRenderer srenderer;
@@ -12,7 +15,7 @@ namespace Spriter2UnityDX {
 		private int sor;
 		public int SortingOrder {
 			get { return sor; }
-			set { 
+			set {
 				sor = value;
 				UpdateSortingOrder ();
 			}
