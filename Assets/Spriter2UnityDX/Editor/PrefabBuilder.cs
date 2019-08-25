@@ -39,7 +39,7 @@ namespace Spriter2UnityDX.Prefabs {
 				GameObject instance;
 				if (prefab == null) { //Creates an empty prefab if one doesn't already exists
 					instance = new GameObject (entity.name);
-					prefab = PrefabUtility.CreatePrefab (prefabPath, instance, ReplacePrefabOptions.ConnectToPrefab);
+					prefab = PrefabUtility.SaveAsPrefabAssetAndConnect (instance, prefabPath, InteractionMode.AutomatedAction);
 					ProcessingInfo.NewPrefabs.Add (prefab);
 				}
 				else {
@@ -156,7 +156,7 @@ namespace Spriter2UnityDX.Prefabs {
 				}
 			}
 			if (instance.GetComponent<EntityRenderer> () == null) instance.AddComponent<EntityRenderer> (); //Adds an EntityRenderer if one is not already present
-			PrefabUtility.ReplacePrefab (instance, prefab, ReplacePrefabOptions.ConnectToPrefab);
+			PrefabUtility.SaveAsPrefabAssetAndConnect (instance, prefabPath, InteractionMode.AutomatedAction);
 			DestroyImmediate (instance); //Apply the instance's changes to the prefab, then destroy the instance.
 		}
 
@@ -169,7 +169,7 @@ namespace Spriter2UnityDX.Prefabs {
 					if (success) success = false; //If the texture type isn't Sprite, or the pivot isn't set properly, 
 					var settings = new TextureImporterSettings (); //set the texture type and pivot
 					importer.ReadTextureSettings (settings);	//and make success false so the process can abort
-					settings.ApplyTextureType (TextureImporterType.Sprite, true); //after all the textures have been processed
+					settings.ApplyTextureType (TextureImporterType.Sprite); //after all the textures have been processed
 					settings.spriteAlignment = (int)SpriteAlignment.Custom;
 					settings.spritePivot = new Vector2 (file.pivot_x, file.pivot_y);
                     if(ScmlImportOptions.options != null)
