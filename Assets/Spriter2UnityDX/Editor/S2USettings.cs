@@ -4,40 +4,54 @@ using System.Collections;
 
 //Customizable settings for the importer
 namespace Spriter2UnityDX {
-	public class S2USettings : ScriptableObject {
-		private const string IMPORT = "import";
+	internal static class S2USettingsIMGUIRegister
+	{
+		[SettingsProvider]
+		public static SettingsProvider CreateS2USettingsProvider()
+		{
+			var provider = new SettingsProvider("Project/Spriter2UnityDX", SettingsScope.Project)
+			{
+				guiHandler = (searchContext) =>
+				{
+					var settings = S2USettings.GetSerializedSettings();
+					var label = new GUIContent("Animation Import Style",
+						"By default, animations are nested into the generated prefab. Change this option to instead place animations into a separate folder.");
+					EditorGUILayout.PropertyField(settings.FindProperty("importOption"), label);
+					settings.ApplyModifiedProperties();
+				},
+			};
 
-		public static AnimationImportOption ImportStyle {
-			get { return (AnimationImportOption)EditorPrefs.GetInt (IMPORT); }
-			set { EditorPrefs.SetInt (IMPORT, (int)value); }
+			return provider;
+		}
+	}
+
+	public class S2USettings : ScriptableObject
+	{
+		private const string settingsPath = "Assets/Spriter2UnityDX/Editor/Settings.asset";
+
+		[SerializeField]
+		private AnimationImportOption importOption;
+
+		internal AnimationImportOption ImportOption { get { return importOption; } }
+
+		internal static S2USettings GetOrCreateSettings()
+		{
+			var settings = AssetDatabase.LoadAssetAtPath<S2USettings>(settingsPath);
+			if (settings == null)
+			{
+				settings = ScriptableObject.CreateInstance<S2USettings>();
+				settings.importOption = AnimationImportOption.NestedInPrefab;
+				AssetDatabase.CreateAsset(settings, settingsPath);
+				AssetDatabase.SaveAssets();
+			}
+			return settings;
 		}
 
-		[MenuItem ("Edit/Project Settings/Spriter2UnityDX")]
-		public static void Select () {
-			var settings = CreateInstance<S2USettings> ();
-			Selection.activeObject = settings;
+		internal static SerializedObject GetSerializedSettings()
+		{
+			return new SerializedObject(GetOrCreateSettings());
 		}
 	}
 
 	public enum AnimationImportOption : byte { NestedInPrefab, SeparateFolder }
-
-	[CustomEditor (typeof(S2USettings))] public class SettingsEditor: Editor {
-		private AnimationImportOption importStyle;
-
-		private void OnEnable () {
-			importStyle = S2USettings.ImportStyle;
-		}
-
-		private void OnDisable () {
-			DestroyImmediate (target);
-		}
-
-		public override void OnInspectorGUI () {
-			EditorGUI.BeginChangeCheck ();
-			var label = new GUIContent ("Animation Import Style", 
-				"By default, animations are nested into the generated prefab. Change this option to instead place animations into a separate folder.");
-			importStyle = (AnimationImportOption)EditorGUILayout.EnumPopup (label, importStyle);
-			if (EditorGUI.EndChangeCheck ()) S2USettings.ImportStyle = importStyle;
-		}
-	}
 }
